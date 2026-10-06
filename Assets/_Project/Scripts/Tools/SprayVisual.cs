@@ -1,12 +1,12 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// Sprey aletinin üzerinde durur. Sol tık basılıyken partikül + ses, kapasite azalır.
+// Sprey aletinin üzerinde durur. Sol tık basılıyken partikül + ses, kapasite azalır. R tuşu kutuyu doldurur.
 public class SprayVisual : MonoBehaviour
 {
     [Header("References")]
-    [Tooltip("Boş bırakılırsa child objelerde aranır.")]
-    [SerializeField] private ParticleSystem sprayParticles;
+    [Tooltip("Sprey partikül sistem(ler)i. Boş bırakılırsa child objelerde aranır.")]
+    [SerializeField] private ParticleSystem[] sprayLayers;
     [SerializeField] private AudioSource spraySound;
 
     [Header("Capacity")]
@@ -14,6 +14,7 @@ public class SprayVisual : MonoBehaviour
     [SerializeField, Min(0f)] private float drainRate = 8f;
 
     public float CapacityPercent => currentCapacity / maxCapacity;
+    public bool IsSpraying => isSpraying;
 
     private float currentCapacity;
     private bool isSpraying;
@@ -21,21 +22,21 @@ public class SprayVisual : MonoBehaviour
     // Referansları alır, kapasiteyi doldurur ve başlangıçta emisyonu kapatır.
     private void Awake()
     {
-        if (sprayParticles == null)
-            sprayParticles = GetComponentInChildren<ParticleSystem>();
+        if (sprayLayers == null || sprayLayers.Length == 0)
+            sprayLayers = GetComponentsInChildren<ParticleSystem>(true);
 
         currentCapacity = maxCapacity;
 
-        if (sprayParticles != null)
-        {
-            var emission = sprayParticles.emission;
-            emission.enabled = false;
-        }
+        SetEmission(false);
     }
 
     // Her kare: tuş basılı mı ve kapasite var mı, ona göre püskürtmeyi aç/kapat.
     private void Update()
     {
+        var keyboard = Keyboard.current;
+        if (keyboard != null && keyboard.rKey.wasPressedThisFrame)
+            Refill();
+
         var mouse = Mouse.current;
         bool wantsToSpray = mouse != null && mouse.leftButton.isPressed;
         bool canSpray = wantsToSpray && currentCapacity > 0f;
@@ -61,13 +62,7 @@ public class SprayVisual : MonoBehaviour
     {
         isSpraying = true;
 
-        if (sprayParticles != null)
-        {
-            var emission = sprayParticles.emission;
-            emission.enabled = true;
-            if (!sprayParticles.isPlaying)
-                sprayParticles.Play();
-        }
+        SetEmission(true);
 
         if (spraySound != null)
         {
@@ -82,14 +77,29 @@ public class SprayVisual : MonoBehaviour
     {
         isSpraying = false;
 
-        if (sprayParticles != null)
-        {
-            var emission = sprayParticles.emission;
-            emission.enabled = false;
-        }
+        SetEmission(false);
 
         if (spraySound != null)
             spraySound.Stop();
+    }
+
+    // Sprey katmanlarının emisyonunu açar/kapatır; açarken gerekirse oynatır.
+    private void SetEmission(bool on)
+    {
+        if (sprayLayers != null)
+        {
+            for (int i = 0; i < sprayLayers.Length; i++)
+                SetEmission(sprayLayers[i], on);
+        }
+    }
+
+    private static void SetEmission(ParticleSystem ps, bool on)
+    {
+        if (ps == null) return;
+        var emission = ps.emission;
+        emission.enabled = on;
+        if (on && !ps.isPlaying)
+            ps.Play();
     }
 
     // Kutuyu tamamen doldurur.

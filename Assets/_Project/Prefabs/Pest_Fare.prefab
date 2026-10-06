@@ -1,0 +1,239 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &5485760107538366224
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7309822627857082459}
+  - component: {fileID: 3909543250280704184}
+  - component: {fileID: 3728726534446425435}
+  m_Layer: 9
+  m_Name: Body
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7309822627857082459
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5485760107538366224}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 0, y: 0.04, z: 0}
+  m_LocalScale: {x: 0.1, y: 0.1, z: 0.06}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8815592433444202087}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &3909543250280704184
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5485760107538366224}
+  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!23 &3728726534446425435
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5485760107538366224}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: d5a7b65bee1833f48a0a0bba936eea4d, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 1
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &8316616245016311716
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8815592433444202087}
+  - component: {fileID: 6858690632177657628}
+  - component: {fileID: 4871894523531642699}
+  - component: {fileID: 1366400963942759530}
+  m_Layer: 9
+  m_Name: Pest_Fare
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8815592433444202087
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8316616245016311716}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 7309822627857082459}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &6858690632177657628
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8316616245016311716}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.12, y: 0.08, z: 0.22}
+  m_Center: {x: 0, y: 0.04, z: 0}
+--- !u!195 &4871894523531642699
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8316616245016311716}
+  m_Enabled: 1
+  m_AgentTypeID: -1372625422
+  m_Radius: 0.08
+  m_Speed: 3.5
+  m_Acceleration: 12
+  avoidancePriority: 50
+  m_AngularSpeed: 540
+  m_StoppingDistance: 0
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 0.08
+  m_BaseOffset: 0
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 1
+--- !u!114 &1366400963942759530
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8316616245016311716}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29b7de2f94c354246b27a3b325f6e92a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Pest
+  speciesName: Hamambocegi
+  species: 0
+  isSprayResistant: 0
+  spraySlowDuration: 2
+  spraySlowAmount: 0.3
+  resistGraceTime: 0.6
+  cornerSearchDistance: 6
+  cornerMinDistance: 0.75
+  cornerWaitTime: 2
+  wanderRadius: 4
+  minIdleWait: 0.5
+  maxIdleWait: 2
+  moveSpeed: 1.2
+  arriveDistance: 0.15
+  giveUpTime: 6
+  detectRadius: 4
+  fleeSpeed: 2.85
+  fleeDistance: 3
+  calmDownTime: 2
+  freezeDuration: 0.3
+  panicHops: 3
+  panicDuration: 0.5
+  panicHopRadius: 1
+  zigzagInterval: 0.2
+  zigzagSpeed: 8
+  zigzagAmount: 0.6
+  zigzagLookAhead: 1
+  pauseInterval: 1.5
+  pauseDuration: 0.2
+  speedVariation: 0.7
+  panicSpeedDecayTime: 6
+  hideSearchRadius: 2
+  hideMinTime: 5
+  hideMaxTime: 10
+  hideArriveDistance: 0.5
+  homeSearchRadius: 8
+  hideRetryDelay: 3
+  maxHealth: 20
+  knockbackDistance: 0.05
+  hitFreezeDuration: 0.1
+  convulsionDuration: 1.5
+  convulsionIntensity: 0.02
+  twitchInterval: 0.15
+  legTwitchScale: 0.04
+  flipDuration: 0.5
+  finalTwitchDuration: 0.5
+  corpseLifetime: 30
+  fadeDuration: 1.5
+  corpseFadeMaterial: {fileID: 2100000, guid: ae2d9920c8e9c7d42ad31e7b7641abea, type: 2}
+  maxCorpses: 40
+  debugCorpseLogs: 0
+  mouseDeathSound: {fileID: 0}
+  onDeath:
+    m_PersistentCalls:
+      m_Calls: []
+  corpseLayerName: Corpse
+  thinkInterval: 0.2

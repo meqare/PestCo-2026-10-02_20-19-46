@@ -7,6 +7,8 @@ public class Flashlight : MonoBehaviour
     [Header("References")]
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private AudioSource clickSound;
+    [Tooltip("Fener kapalıyken açık kalan çok zayıf yakın ışık. Fener açılınca kapanır.")]
+    [SerializeField] private Light nearLight;
 
     [Header("Sway")]
     [Tooltip("Approximate lag in seconds behind the camera. 0 = no sway.")]
@@ -43,6 +45,7 @@ public class Flashlight : MonoBehaviour
         normalIntensity = spotLight.intensity;
 
         IsOn = spotLight.enabled;
+        UpdateNearLight();
         swayRotation = cameraTransform != null ? cameraTransform.rotation : transform.rotation;
         ApplyMode();
     }
@@ -84,6 +87,7 @@ public class Flashlight : MonoBehaviour
 
         IsOn = on;
         spotLight.enabled = on;
+        UpdateNearLight();
         if (on && clickSound != null)
             clickSound.Play();
     }
@@ -99,6 +103,7 @@ public class Flashlight : MonoBehaviour
             {
                 IsOn = false;
                 spotLight.enabled = false;
+                UpdateNearLight();
                 return;
             }
         }
@@ -112,6 +117,13 @@ public class Flashlight : MonoBehaviour
             intensity *= 1f - noise * Mathf.Lerp(0.15f, 0.6f, strength);
         }
         spotLight.intensity = intensity;
+    }
+
+    // Fener açıkken yakın ışık kapalı (gereksiz ışık yok), kapalıyken zayıf göz alışması ışığı olarak açık.
+    private void UpdateNearLight()
+    {
+        if (nearLight != null)
+            nearLight.enabled = !IsOn;
     }
 
     private void ApplyMode()

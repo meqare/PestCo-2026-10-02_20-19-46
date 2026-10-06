@@ -43,6 +43,383 @@ public static class PestCoSetup
         });
     }
 
+    // Adı "PestNest" ile başlayan tüm yuvaları denetler ve eksiklerini tamamlar:
+    // layer = Nest, PestNest (+ can/doğurma değerleri), katı collider, UVRevealable (+ referanslar).
+    // Spreyin Nest layer'ını vurmasını da sağlar.
+    [MenuItem("PEST CO/Fix - Tum Yuvalari Duzelt", priority = 29)]
+    [MenuItem("PEST CO/Hafta 3/Fix - Tum Yuvalari Duzelt", priority = 30)]
+    private static void FixAllNests()
+    {
+        if (Application.isPlaying)
+        {
+            Debug.LogError("PEST CO: Yuva duzeltme Play modunda calismaz, once Play'i durdur.");
+            return;
+        }
+
+        EnsureLayer("Nest");
+        int nestLayer = LayerMask.NameToLayer("Nest");
+        if (nestLayer < 0) return;
+
+        Material nestMaterial = AssetDatabase.LoadAssetAtPath<Material>(MaterialsRoot + "/M_Nest.mat");
+        int found = 0, fixedCount = 0;
+
+        foreach (GameObject go in Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (!go.name.StartsWith("PestNest")) continue;
+            found++;
+
+            var changes = new System.Collections.Generic.List<string>();
+            Collider existingCollider = go.GetComponent<Collider>();
+            Debug.Log($"PEST CO: [{go.name}] layer={LayerMask.LayerToName(go.layer)}, " +
+                      $"PestNest={go.GetComponent<PestNest>() != null}, " +
+                      $"collider={(existingCollider != null ? existingCollider.GetType().Name + (existingCollider.isTrigger ? " (TRIGGER)" : "") : "YOK")}, " +
+                      $"UVRevealable={go.GetComponent<UVRevealable>() != null}", go);
+
+            // Layer: spreyin hedef listesinde olacak Nest layer'ı.
+            if (go.layer != nestLayer)
+            {
+                Undo.RecordObject(go, "Fix Nest Layer");
+                go.layer = nestLayer;
+                changes.Add("layer=Nest");
+            }
+
+            // PestNest script'i: can, hasar ve böcek doğurma.
+            PestNest nest = go.GetComponent<PestNest>();
+            if (nest == null)
+            {
+                nest = Undo.AddComponent<PestNest>(go);
+                changes.Add("PestNest eklendi");
+            }
+
+            // Standart yuva değerleri: can 60, 4 sn'de bir böcek, en fazla 12 canlı böcek.
+            if (SetNestDefaults(nest))
+                changes.Add("can/dogurma degerleri");
+
+            // Collider: yoksa küre ekle; varsa sadece trigger'ı kapat (mevcut capsule vb. korunur).
+            if (existingCollider == null)
+            {
+                var sphere = Undo.AddComponent<SphereCollider>(go);
+                sphere.radius = 0.25f;
+                sphere.isTrigger = false;
+                changes.Add("SphereCollider eklendi");
+            }
+            else if (existingCollider.isTrigger)
+            {
+                Undo.RecordObject(existingCollider, "Fix Nest Collider");
+                existingCollider.isTrigger = false;
+                changes.Add("IsTrigger kapatildi");
+            }
+
+            // UVRevealable: UV fenerle parlama. Kendi renderer'ı ve varsa MarkerRoot bağlanır.
+            if (go.GetComponent<UVRevealable>() == null)
+            {
+                var uv = Undo.AddComponent<UVRevealable>(go);
+                var so = new SerializedObject(uv);
+
+                Renderer ownRenderer = go.GetComponent<Renderer>();
+                // Neon yeşil (#39FF14), HDR: biraz parlasın diye 1.5 ile çarpılır.
+                so.FindProperty("glowColor").colorValue = (Color)new Color32(0x39, 0xFF, 0x14, 0xFF) * 1.5f;
+
+                SerializedProperty glow = so.FindProperty("glowRenderers");
+                glow.arraySize = ownRenderer != null ? 1 : 0;
+                if (ownRenderer != null) glow.GetArrayElementAtIndex(0).objectReferenceValue = ownRenderer;
+
+                Transform marker = go.transform.Find("MarkerRoot");
+                SerializedProperty markers = so.FindProperty("showWhenRevealed");
+                markers.arraySize = marker != null ? 1 : 0;
+                if (marker != null) markers.GetArrayElementAtIndex(0).objectReferenceValue = marker.gameObject;
+
+                so.ApplyModifiedProperties();
+                changes.Add("UVRevealable eklendi");
+            }
+
+            // Materyal: emission'sız varsayılan "Lit" ile UV parlaması görünmez, M_Nest verilir.
+            Renderer rend = go.GetComponent<Renderer>();
+            if (rend != null && nestMaterial != null && rend.sharedMaterial != null
+                && !rend.sharedMaterial.IsKeywordEnabled("_EMISSION"))
+            {
+                Undo.RecordObject(rend, "Fix Nest Material");
+                rend.sharedMaterial = nestMaterial;
+                changes.Add("materyal=M_Nest");
+            }
+
+            if (changes.Count > 0)
+            {
+                fixedCount++;
+                MarkDirty(go);
+                Debug.Log($"PEST CO: [{go.name}] duzeltildi -> {string.Join(", ", changes)}", go);
+            }
+        }
+
+        // Asıl sebep: sprey sadece targetLayers'taki objeleri tarar. Nest yoksa ekle.
+        int sprayFixed = 0;
+        foreach (SprayTool spray in Object.FindObjectsByType<SprayTool>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            var so = new SerializedObject(spray);
+            SerializedProperty mask = so.FindProperty("targetLayers");
+            if ((mask.intValue & (1 << nestLayer)) != 0) continue;
+
+            mask.intValue |= 1 << nestLayer;
+            so.ApplyModifiedProperties();
+            MarkDirty(spray.gameObject);
+            sprayFixed++;
+            Debug.Log("PEST CO: SprayTool hedef layer'larina 'Nest' eklendi.", spray);
+        }
+
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log($"PEST CO: {found} yuva bulundu, {fixedCount} adet yuva duzeltildi" +
+                  (sprayFixed > 0 ? $", {sprayFixed} SprayTool guncellendi." : ".") +
+                  " Ctrl+S ile kaydet.");
+    }
+
+    // Yuvanın can ve doğurma değerlerini standart yapar; bir şey değiştiyse true döner.
+    private static bool SetNestDefaults(PestNest nest)
+    {
+        var so = new SerializedObject(nest);
+        bool changed = false;
+        changed |= SetFloat(so, "maxHealth", 60f);
+        changed |= SetFloat(so, "spawnInterval", 4f);
+
+        SerializedProperty maxPests = so.FindProperty("maxActivePests");
+        if (maxPests.intValue != 12)
+        {
+            maxPests.intValue = 12;
+            changed = true;
+        }
+
+        so.ApplyModifiedProperties();
+        return changed;
+    }
+
+    // Float alanı farklıysa yazar; değiştiyse true döner.
+    private static bool SetFloat(SerializedObject so, string field, float value)
+    {
+        SerializedProperty prop = so.FindProperty(field);
+        if (Mathf.Approximately(prop.floatValue, value)) return false;
+        prop.floatValue = value;
+        return true;
+    }
+
+    // ------------------------------------------------------------------
+    // FARE
+    // ------------------------------------------------------------------
+
+    private const string MouseRootName = "P_Mouse_Root";
+    private const string MousePrefabPath = PrefabsRoot + "/Pests/P_Mouse.prefab";
+    // Kök obje zeminde durur (agent Base Offset = 0); model gövde yarıçapı kadar yukarı kaldırılır ki gömülmesin.
+    private const float MouseModelLift = 0.075f;
+
+    // Eski/bozuk fareyi siler; primitiflerden yeni bir fare kurar, prefab olarak kaydeder ve sahnede bir tane bırakır.
+    [MenuItem("PEST CO/Fix - Fareyi Bastan Yap", priority = 40)]
+    private static void RebuildMouse()
+    {
+        if (Application.isPlaying)
+        {
+            Debug.LogError("PEST CO: Fare Play modunda kurulamaz, once Play'i durdur.");
+            return;
+        }
+
+        // Bug agent tipi NavMesh'in pişirildiği tip; yoksa fare yürüyemez.
+        int bugAgentId = FindAgentTypeId("Bug");
+        if (bugAgentId == int.MinValue)
+        {
+            Debug.LogError("PEST CO: 'Bug' agent tipi yok. Window > AI > Navigation > Agents'tan ekle " +
+                           "(Radius 0.06, Height 0.12, Step Height 0.04, Max Slope 45) ve NavMesh'i yeniden pisir.");
+            return;
+        }
+
+        EnsureLayer("Pest");
+        int pestLayer = LayerMask.NameToLayer("Pest");
+
+        // a) Temizlik.
+        int deleted = DeleteMouseLeftovers();
+
+        // b) Kök obje.
+        var root = new GameObject(MouseRootName);
+        Undo.RegisterCreatedObjectUndo(root, "Create Mouse");
+        root.layer = pestLayer;
+        root.transform.position = FindMouseSpawnPoint(bugAgentId);
+        root.transform.localScale = Vector3.one;
+
+        // c) Gövde collider'ı (sprey bunu bulur).
+        var box = root.AddComponent<BoxCollider>();
+        box.isTrigger = false;
+        box.size = new Vector3(0.20f, 0.15f, 0.30f);
+        box.center = new Vector3(0f, 0.05f, 0f);
+
+        // d) NavMeshAgent.
+        var agent = root.AddComponent<UnityEngine.AI.NavMeshAgent>();
+        agent.agentTypeID = bugAgentId;
+        agent.baseOffset = 0f;
+        agent.speed = 1.5f;
+        agent.angularSpeed = 720f;
+        agent.acceleration = 20f;
+        agent.stoppingDistance = 0f;
+        agent.autoBraking = false;
+        agent.radius = 0.06f;
+        agent.height = 0.12f;
+        agent.obstacleAvoidanceType = UnityEngine.AI.ObstacleAvoidanceType.LowQualityObstacleAvoidance;
+        agent.avoidancePriority = 50;
+        agent.autoTraverseOffMeshLink = true;
+        agent.autoRepath = true;
+        agent.areaMask = UnityEngine.AI.NavMesh.AllAreas;
+
+        // Adım 2: primitif model (Pest Awake'te renderer'ları topladığı için Pest'ten önce kurulur).
+        BuildMouseModel(root.transform, pestLayer);
+
+        // e) Pest script'i ve fare ayarları.
+        var pest = root.AddComponent<Pest>();
+        ConfigureMousePest(pest);
+
+        // Sprey Pest layer'ını da vursun (hamamböceği Bug layer'ında, fare Pest'te).
+        int sprayFixed = AddLayerToSprayTargets(pestLayer);
+
+        // Adım 3: prefab kaydet (varsa üzerine yazar); sahnedeki kopya prefab'a bağlı kalır.
+        SavePrefab(root, MousePrefabPath);
+
+        EditorSceneManager.MarkSceneDirty(root.scene);
+        Selection.activeGameObject = root;
+        Debug.Log($"✅ P_Mouse prefab olusturuldu - primitiflerle ({deleted} eski obje silindi" +
+                  (sprayFixed > 0 ? ", sprey artik 'Pest' layer'ini da vuruyor" : "") + "). Ctrl+S ile kaydet.", root);
+    }
+
+    // Adı P_Mouse_Root veya Meshy_AI_Wh ile başlayan tüm kök/alt objeleri siler; kaç tane sildiğini döner.
+    private static int DeleteMouseLeftovers()
+    {
+        int deleted = 0;
+        foreach (GameObject go in Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (go == null) continue; // ebeveyniyle birlikte silinmiş olabilir
+            if (!go.name.StartsWith(MouseRootName) && !go.name.StartsWith("Meshy_AI_Wh")) continue;
+            Undo.DestroyObjectImmediate(go);
+            deleted++;
+        }
+        return deleted;
+    }
+
+    // Verilen isimdeki NavMesh agent tipinin ID'sini döner; yoksa int.MinValue.
+    private static int FindAgentTypeId(string ad)
+    {
+        int count = UnityEngine.AI.NavMesh.GetSettingsCount();
+        for (int i = 0; i < count; i++)
+        {
+            int id = UnityEngine.AI.NavMesh.GetSettingsByIndex(i).agentTypeID;
+            if (UnityEngine.AI.NavMesh.GetSettingsNameFromID(id) == ad)
+                return id;
+        }
+        return int.MinValue;
+    }
+
+    // (0, 0.1, 0) yakınında Bug NavMesh'i varsa orayı, yoksa oyuncunun yanını döner.
+    private static Vector3 FindMouseSpawnPoint(int agentTypeId)
+    {
+        var filter = new UnityEngine.AI.NavMeshQueryFilter { agentTypeID = agentTypeId, areaMask = UnityEngine.AI.NavMesh.AllAreas };
+        Vector3 wanted = new Vector3(0f, 0.1f, 0f);
+        if (UnityEngine.AI.NavMesh.SamplePosition(wanted, out UnityEngine.AI.NavMeshHit hit, 1f, filter))
+            return wanted;
+
+        PlayerController player = Object.FindFirstObjectByType<PlayerController>();
+        if (player != null)
+        {
+            Vector3 near = player.transform.position + player.transform.forward * 1.5f;
+            if (UnityEngine.AI.NavMesh.SamplePosition(near, out hit, 3f, filter))
+                return hit.position;
+        }
+
+        Debug.LogWarning("PEST CO: Fare icin yakinda Bug NavMesh'i bulunamadi, (0, 0.1, 0)'a kondu.");
+        return wanted;
+    }
+
+    // Kökün altına primitiflerden fare modelini kurar: collider'sız, gölgesiz, ortak M_Mouse materyali.
+    private static void BuildMouseModel(Transform root, int layer)
+    {
+        Material mat = CreateURPMaterial("M_Mouse", new Color32(60, 60, 65, 255), false);
+        if (mat != null)
+        {
+            mat.SetFloat("_Smoothness", 0.2f);
+            EditorUtility.SetDirty(mat);
+        }
+
+        AddMousePart(root, "Body", PrimitiveType.Sphere, new Vector3(0.20f, 0.15f, 0.30f), new Vector3(0f, 0f, 0f), Vector3.zero, layer, mat);
+        AddMousePart(root, "Head", PrimitiveType.Sphere, new Vector3(0.15f, 0.13f, 0.15f), new Vector3(0f, 0f, 0.20f), Vector3.zero, layer, mat);
+        AddMousePart(root, "Snout", PrimitiveType.Sphere, new Vector3(0.06f, 0.06f, 0.08f), new Vector3(0f, -0.02f, 0.30f), Vector3.zero, layer, mat);
+        AddMousePart(root, "Nose", PrimitiveType.Sphere, new Vector3(0.03f, 0.03f, 0.03f), new Vector3(0f, -0.02f, 0.35f), Vector3.zero, layer, mat);
+        AddMousePart(root, "EarL", PrimitiveType.Sphere, new Vector3(0.10f, 0.03f, 0.10f), new Vector3(-0.08f, 0.10f, 0.18f), Vector3.zero, layer, mat);
+        AddMousePart(root, "EarR", PrimitiveType.Sphere, new Vector3(0.10f, 0.03f, 0.10f), new Vector3(0.08f, 0.10f, 0.18f), Vector3.zero, layer, mat);
+        AddMousePart(root, "EyeL", PrimitiveType.Sphere, new Vector3(0.03f, 0.03f, 0.03f), new Vector3(-0.06f, 0.04f, 0.27f), Vector3.zero, layer, mat);
+        AddMousePart(root, "EyeR", PrimitiveType.Sphere, new Vector3(0.03f, 0.03f, 0.03f), new Vector3(0.06f, 0.04f, 0.27f), Vector3.zero, layer, mat);
+        AddMousePart(root, "Tail", PrimitiveType.Cylinder, new Vector3(0.02f, 0.25f, 0.02f), new Vector3(0f, 0f, -0.25f), new Vector3(90f, 0f, 0f), layer, mat);
+    }
+
+    // Tek bir model parçası: primitif oluşturur, collider'ını siler, gölgeyi kapatır, materyali takar.
+    private static void AddMousePart(Transform root, string ad, PrimitiveType type, Vector3 scale, Vector3 pos,
+        Vector3 euler, int layer, Material mat)
+    {
+        GameObject part = GameObject.CreatePrimitive(type);
+        Undo.RegisterCreatedObjectUndo(part, "Create " + ad);
+        part.name = ad;
+        part.layer = layer;
+        Object.DestroyImmediate(part.GetComponent<Collider>());
+
+        part.transform.SetParent(root, false);
+        part.transform.localPosition = pos + Vector3.up * MouseModelLift;
+        part.transform.localRotation = Quaternion.Euler(euler);
+        part.transform.localScale = scale;
+
+        var rend = part.GetComponent<MeshRenderer>();
+        rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        if (mat != null) rend.sharedMaterial = mat;
+    }
+
+    // Fare için Pest alanlarını yazar; ceset materyalini hamamböceği prefab'ından kopyalar.
+    private static void ConfigureMousePest(Pest pest)
+    {
+        var so = new SerializedObject(pest);
+        so.FindProperty("species").enumValueIndex = (int)Pest.PestSpecies.Mouse;
+        so.FindProperty("speciesName").stringValue = "Fare";
+        so.FindProperty("maxHealth").floatValue = 60f;
+        so.FindProperty("wanderRadius").floatValue = 3f;
+        so.FindProperty("minIdleWait").floatValue = 0.5f;
+        so.FindProperty("maxIdleWait").floatValue = 2f;
+        so.FindProperty("moveSpeed").floatValue = 1.5f;
+        so.FindProperty("fleeSpeed").floatValue = 3.5f;
+        so.FindProperty("detectRadius").floatValue = 4f;
+        so.FindProperty("fleeDistance").floatValue = 3f;
+        so.FindProperty("calmDownTime").floatValue = 2f;
+        so.FindProperty("isSprayResistant").boolValue = true;
+        so.FindProperty("spraySlowDuration").floatValue = 2f;
+        so.FindProperty("spraySlowAmount").floatValue = 0.3f;
+        so.FindProperty("resistGraceTime").floatValue = 0.6f;
+
+        // Sönme için şeffaf ortak materyal (hamamböceği ile aynısı).
+        var roach = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabsRoot + "/Pest_Hamambocegi.prefab");
+        if (roach != null && roach.TryGetComponent(out Pest roachPest))
+        {
+            var roachSo = new SerializedObject(roachPest);
+            so.FindProperty("corpseFadeMaterial").objectReferenceValue =
+                roachSo.FindProperty("corpseFadeMaterial").objectReferenceValue;
+        }
+
+        so.ApplyModifiedProperties();
+    }
+
+    // Sahnedeki tüm SprayTool'ların hedef layer'larına verilen layer'ı ekler; kaç tanesini değiştirdiğini döner.
+    private static int AddLayerToSprayTargets(int layer)
+    {
+        int changed = 0;
+        foreach (SprayTool spray in Object.FindObjectsByType<SprayTool>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            var so = new SerializedObject(spray);
+            SerializedProperty mask = so.FindProperty("targetLayers");
+            if ((mask.intValue & (1 << layer)) != 0) continue;
+            mask.intValue |= 1 << layer;
+            so.ApplyModifiedProperties();
+            MarkDirty(spray.gameObject);
+            changed++;
+        }
+        return changed;
+    }
+
     // ------------------------------------------------------------------
     // OBJE
     // ------------------------------------------------------------------

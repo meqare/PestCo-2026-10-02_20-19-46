@@ -1,0 +1,259 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8316616245016311716
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8815592433444202087}
+  - component: {fileID: 6858690632177657628}
+  - component: {fileID: 4871894523531642699}
+  - component: {fileID: 1366400963942759530}
+  m_Layer: 9
+  m_Name: Pest_Hamambocegi
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8815592433444202087
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8316616245016311716}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3670738773564438790}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &6858690632177657628
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8316616245016311716}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.12, y: 0.08, z: 0.22}
+  m_Center: {x: 0, y: 0.04, z: 0}
+--- !u!195 &4871894523531642699
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8316616245016311716}
+  m_Enabled: 1
+  m_AgentTypeID: -1372625422
+  m_Radius: 0.08
+  m_Speed: 3.5
+  m_Acceleration: 12
+  avoidancePriority: 50
+  m_AngularSpeed: 540
+  m_StoppingDistance: 0
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 0.08
+  m_BaseOffset: 0
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 1
+--- !u!114 &1366400963942759530
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8316616245016311716}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29b7de2f94c354246b27a3b325f6e92a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Pest
+  speciesName: Hamambocegi
+  species: 0
+  isSprayResistant: 0
+  spraySlowDuration: 2
+  spraySlowAmount: 0.3
+  resistGraceTime: 0.6
+  cornerSearchDistance: 6
+  cornerMinDistance: 0.75
+  cornerWaitTime: 2
+  wanderRadius: 4
+  minIdleWait: 0.5
+  maxIdleWait: 2
+  moveSpeed: 1.2
+  arriveDistance: 0.15
+  giveUpTime: 6
+  detectRadius: 4
+  fleeSpeed: 2.85
+  fleeDistance: 3
+  calmDownTime: 2
+  freezeDuration: 0.3
+  panicHops: 3
+  panicDuration: 0.5
+  panicHopRadius: 1
+  zigzagInterval: 0.2
+  zigzagSpeed: 8
+  zigzagAmount: 0.6
+  zigzagLookAhead: 1
+  pauseInterval: 1.5
+  pauseDuration: 0.2
+  speedVariation: 0.7
+  panicSpeedDecayTime: 6
+  hideSearchRadius: 2
+  hideMinTime: 5
+  hideMaxTime: 10
+  hideArriveDistance: 0.5
+  homeSearchRadius: 8
+  hideRetryDelay: 3
+  maxHealth: 20
+  knockbackDistance: 0.05
+  hitFreezeDuration: 0.1
+  convulsionDuration: 1.5
+  convulsionIntensity: 0.02
+  twitchInterval: 0.15
+  legTwitchScale: 0.04
+  flipDuration: 0.5
+  finalTwitchDuration: 0.5
+  corpseLifetime: 30
+  fadeDuration: 1.5
+  corpseFadeMaterial: {fileID: 2100000, guid: ae2d9920c8e9c7d42ad31e7b7641abea, type: 2}
+  maxCorpses: 40
+  debugCorpseLogs: 0
+  mouseDeathSound: {fileID: 0}
+  onDeath:
+    m_PersistentCalls:
+      m_Calls: []
+  corpseLayerName: Corpse
+  thinkInterval: 0.2
+--- !u!1001 &3853863065819995885
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 8815592433444202087}
+    m_Modifications:
+    - target: {fileID: -8950249229831205446, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: -8700617353114198275, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.03
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -1152351623726812720, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 65702495048144492, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_Name
+      value: RoachModel
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 5332809968238436118, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 6382245311717971734, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_CastShadows
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6382245311717971734, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: m_ReceiveShadows
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6382245311717971734, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: b6c691121362ef54f866aa2c09381048, type: 2}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+--- !u!4 &3670738773564438790 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 67ea4a2b1e2d95149ba6b67c8e4278d9, type: 3}
+  m_PrefabInstance: {fileID: 3853863065819995885}
+  m_PrefabAsset: {fileID: 0}
