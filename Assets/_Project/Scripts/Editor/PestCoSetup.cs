@@ -584,6 +584,197 @@ public static class PestCoSetup
     }
 
     // ------------------------------------------------------------------
+    // KAPILAR (Hafta 5)
+    // ------------------------------------------------------------------
+
+    private const string DoorPrefabPath = "Assets/_Project/Prefabs/Interactables/Door.prefab";
+    private const string DoorInstancePrefix = "InteractableDoor_";
+
+    // Sahnedeki kapı çerçevelerinin (Door_* + Frame_A/B/Top) boşluğuna E ile açılan kapı yerleştirir.
+    [MenuItem("PEST CO/Hafta 5/2 - Kapilari Kur", priority = 52)]
+    private static void SetupDoors()
+    {
+        if (Application.isPlaying)
+        {
+            Debug.LogError("PEST CO: Kapilari kurmak Play modunda calismaz, once Play'i durdur.");
+            return;
+        }
+
+        EnsureLayer("Interactable");
+        GameObject prefab = EnsureDoorPrefab();
+        if (prefab == null) return;
+        int layer = LayerMask.NameToLayer("Interactable");
+
+        // Önce eski kapılar silinir (menü tekrar çalıştırılabilsin).
+        foreach (Transform t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (t != null && t.name.StartsWith(DoorInstancePrefix))
+                Undo.DestroyObjectImmediate(t.gameObject);
+        }
+
+        // Çerçeveleri topla: Frame_A, Frame_B ve Frame_Top çocuğu olan "Door_*" grupları.
+        var frames = new System.Collections.Generic.List<Transform>();
+        foreach (Transform t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        {
+            if (t.name.StartsWith("Door_") && t.Find("Frame_A") != null && t.Find("Frame_B") != null && t.Find("Frame_Top") != null)
+                frames.Add(t);
+        }
+
+        int placed = 0;
+        foreach (Transform group in frames)
+        {
+            Bounds a = group.Find("Frame_A").GetComponent<Renderer>().bounds;
+            Bounds b = group.Find("Frame_B").GetComponent<Renderer>().bounds;
+            Bounds top = group.Find("Frame_Top").GetComponent<Renderer>().bounds;
+
+            // Geçiş ekseni: boşluk Z'de ince (duvar X boyunca) ya da X'te ince.
+            Vector3 mid = (a.center + b.center) * 0.5f;
+            bool alongZ = Mathf.Abs(a.center.x - b.center.x) > Mathf.Abs(a.center.z - b.center.z);
+            float span = alongZ ? Mathf.Abs(a.center.x - b.center.x) : Mathf.Abs(a.center.z - b.center.z);
+            float frameThickness = alongZ ? a.size.x : a.size.z;
+            float width = span - frameThickness - 0.02f;          // çerçeve içi net genişlik
+            float height = top.min.y - 0.02f;                      // üst çerçevenin altı
+
+            var door = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            Undo.RegisterCreatedObjectUndo(door, "Kapi yerlestir");
+            door.name = DoorInstancePrefix + group.name.Replace("Door_", "");
+            door.transform.position = new Vector3(mid.x, 0f, mid.z);
+            door.transform.rotation = alongZ ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
+
+            // Kapı panelini boşluğa göre boyutlandır; menteşe sol kenarda.
+            Transform pivot = door.transform.Find("DoorPivot");
+            Transform mesh = pivot.Find("DoorMesh");
+            pivot.localPosition = new Vector3(-width * 0.5f, 0f, 0f);
+            mesh.localScale = new Vector3(width, height, 0.05f);
+            mesh.localPosition = new Vector3(width * 0.5f, height * 0.5f, 0f);
+
+            foreach (Transform t in door.GetComponentsInChildren<Transform>(true))
+                t.gameObject.layer = layer;
+            MarkDirty(door);
+            placed++;
+        }
+
+        if (placed == 0)
+        {
+            Debug.LogWarning("PEST CO: Kapi cercevesi bulunamadi (Door_* + Frame_A/Frame_B/Frame_Top).");
+            return;
+        }
+        Debug.Log($"\u2705 {placed} kapi yerlestirildi");
+    }
+
+    // Door.prefab yoksa oluşturur: Door (AudioSource + Door.cs) > DoorPivot > DoorMesh (kutu, collider panelde).
+    // Collider panelde: kök objede olsaydı kapı açılınca boşluğu kapatmaya devam ederdi.
+    private static GameObject EnsureDoorPrefab()
+    {
+        var existing = AssetDatabase.LoadAssetAtPath<GameObject>(DoorPrefabPath);
+        if (existing != null) return existing;
+
+        int layer = LayerMask.NameToLayer("Interactable");
+        Material mat = CreateURPMaterial("Doors/M_Door", new Color(0.29f, 0.19f, 0.12f), false);
+        if (mat != null) mat.SetFloat("_Smoothness", 0.2f);
+
+        var root = new GameObject("Door");
+        var src = root.AddComponent<AudioSource>();
+        src.playOnAwake = false;
+        src.spatialBlend = 1f;
+        src.minDistance = 1f;
+        src.maxDistance = 12f;
+        src.rolloffMode = AudioRolloffMode.Linear;
+
+        var pivot = new GameObject("DoorPivot").transform;
+        pivot.SetParent(root.transform, false);
+        pivot.localPosition = new Vector3(-0.74f, 0f, 0f);          // sol kenar (menteşe)
+
+        var meshGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        meshGo.name = "DoorMesh";
+        meshGo.transform.SetParent(pivot, false);
+        meshGo.transform.localScale = new Vector3(1.48f, 2.2f, 0.05f);
+        meshGo.transform.localPosition = new Vector3(0.74f, 1.1f, 0f);
+        var r = meshGo.GetComponent<Renderer>();
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        if (mat != null) r.sharedMaterial = mat;
+
+        var door = root.AddComponent<Door>();
+        var so = new SerializedObject(door);
+        so.FindProperty("doorPivot").objectReferenceValue = pivot;
+        so.FindProperty("audioSource").objectReferenceValue = src;
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+            t.gameObject.layer = layer;
+
+        EnsureFolder("Assets/_Project/Prefabs/Interactables");
+        GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root, DoorPrefabPath);
+        Object.DestroyImmediate(root);
+        Debug.Log($"PEST CO: prefab kaydedildi -> {DoorPrefabPath}", prefab);
+        return prefab;
+    }
+
+    // ------------------------------------------------------------------
+    // DEBUG HUD (Hafta 6)
+    // ------------------------------------------------------------------
+
+    // Canvas altına sağ üst köşede para ve iş sayısı gösteren DebugHUD kurar (tekrar çalıştırılabilir).
+    [MenuItem("PEST CO/Hafta 6/2 - DebugHUD Kur", priority = 62)]
+    private static void SetupDebugHUD()
+    {
+        if (Application.isPlaying)
+        {
+            Debug.LogError("PEST CO: DebugHUD kurmak Play modunda calismaz, once Play'i durdur.");
+            return;
+        }
+
+        Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            Debug.LogError("PEST CO: Sahnede Canvas yok, DebugHUD kurulamadi.");
+            return;
+        }
+
+        // Eski DebugHUD varsa sil.
+        foreach (DebugHUD eski in Object.FindObjectsByType<DebugHUD>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            Undo.DestroyObjectImmediate(eski.gameObject);
+
+        var root = new GameObject("DebugHUD", typeof(RectTransform));
+        Undo.RegisterCreatedObjectUndo(root, "DebugHUD kur");
+        root.transform.SetParent(canvas.transform, false);
+        var rootRect = (RectTransform)root.transform;
+        rootRect.anchorMin = Vector2.zero;
+        rootRect.anchorMax = Vector2.one;
+        rootRect.offsetMin = Vector2.zero;
+        rootRect.offsetMax = Vector2.zero;
+
+        var money = CreateDebugText(root.transform, "MoneyText", new Vector2(-20f, -20f));
+        var jobs = CreateDebugText(root.transform, "JobsText", new Vector2(-20f, -60f));
+
+        var hud = root.AddComponent<DebugHUD>();
+        SetPrivateField(hud, "moneyText", money);
+        SetPrivateField(hud, "jobsText", jobs);
+
+        MarkDirty(root);
+        Debug.Log("✅ DebugHUD kuruldu (sag ust kose)");
+    }
+
+    // Sağ üste yaslı, sağa hizalı bir TextMeshPro yazısı oluşturur.
+    private static TMPro.TextMeshProUGUI CreateDebugText(Transform parent, string ad, Vector2 konum)
+    {
+        var go = new GameObject(ad, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var rect = (RectTransform)go.transform;
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(1f, 1f);
+        rect.anchoredPosition = konum;
+        rect.sizeDelta = new Vector2(320f, 36f);
+
+        var text = go.AddComponent<TMPro.TextMeshProUGUI>();
+        text.fontSize = 28f;
+        text.alignment = TMPro.TextAlignmentOptions.TopRight;
+        text.color = Color.white;
+        text.raycastTarget = false;
+        text.text = ad;
+        return text;
+    }
+
+    // ------------------------------------------------------------------
     // INSPECTOR ALANI YAZMA
     // ------------------------------------------------------------------
 

@@ -178,6 +178,10 @@ public class Pest : MonoBehaviour, IDamageable
 
     // Havuzdan dönüşte geri yüklenecek orijinal görünüm.
     private Vector3 baseScale;
+    // Dev böcek anomalisi için orijinal değerler (havuzdan her çıkışta geri yüklenir).
+    private Vector3 originalScale;
+    private float originalMaxHealth;
+    private float originalFleeSpeed;
     private Material[] originalMaterials;
     private ShadowCastingMode[] originalShadows;
     private bool[] originalReceiveShadows;
@@ -271,6 +275,9 @@ public class Pest : MonoBehaviour, IDamageable
     private void CacheOriginalLook()
     {
         baseScale = transform.localScale;
+        originalScale = baseScale;
+        originalMaxHealth = maxHealth;
+        originalFleeSpeed = fleeSpeed;
         originalMaterials = new Material[renderers.Length];
         originalShadows = new ShadowCastingMode[renderers.Length];
         originalReceiveShadows = new bool[renderers.Length];
@@ -323,6 +330,10 @@ public class Pest : MonoBehaviour, IDamageable
     private void OnEnable()
     {
         state = PestState.Idle;
+        // Dev böcek anomalisinden kalan değerler sıfırlanır.
+        baseScale = originalScale;
+        maxHealth = originalMaxHealth;
+        fleeSpeed = originalFleeSpeed;
         currentHealth = maxHealth;
         hasFleeTarget = false;
         calmStartTime = -1f;
@@ -517,6 +528,26 @@ public class Pest : MonoBehaviour, IDamageable
     }
 
     // Doğduğu yuvayı ayarlar (yuva, böceği havuzdan aldıktan sonra çağırır).
+    // Dev böcek anomalisi: ölçek, can ve kaçış hızı değişir; lifetime sn sonra (hâlâ yaşıyorsa) kaybolur.
+    // Havuzdan çıkıp aktif olduktan sonra çağrılmalı; havuza dönünce değerler OnEnable'da geri yüklenir.
+    public void ApplyGiant(float scaleMultiplier, float health, float speed, float lifetime)
+    {
+        baseScale = originalScale * scaleMultiplier;
+        transform.localScale = baseScale;
+        maxHealth = health;
+        currentHealth = health;
+        fleeSpeed = speed;
+        if (lifetime > 0f)
+            StartCoroutine(GiantExpire(lifetime));
+    }
+
+    private IEnumerator GiantExpire(float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+        if (state != PestState.Dead)
+            ReturnToPool();
+    }
+
     public void SetHomeNest(PestNest nest)
     {
         homeNest = nest;

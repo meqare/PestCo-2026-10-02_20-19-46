@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e2db28b37f17db4caa0f5750a5885e8, type: 3}
+  m_Name: Anomaly_LightTrick
+  m_EditorClassIdentifier: Assembly-CSharp::AnomalyData
+  anomalyName: "Fenerin G\xF6stermedi\u011Fi \u015Eey"
+  type: 5
+  triggerDelay: 0
+  triggerDelayMax: 0
+  rarity: 0.12
+  triggerSound: {fileID: 0}

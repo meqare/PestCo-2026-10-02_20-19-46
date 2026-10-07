@@ -23,6 +23,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float headBobFrequency = 1.8f;
 
     private CharacterController controller;
+    private PlayerStatus status;
     private float verticalVelocity;
     private float pitch;
     private Vector3 cameraBaseLocalPos;
@@ -31,6 +32,7 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
+        status = GetComponent<PlayerStatus>();
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
         if (cameraTransform != null)
@@ -101,6 +103,8 @@ public class PlayerController : MonoBehaviour
             verticalVelocity = -2f; // keep the controller pressed onto the ground
 
         float speed = keyboard.leftShiftKey.isPressed ? runSpeed : walkSpeed;
+        if (status != null)
+            speed *= status.SpeedMultiplier; // örümcek ağı yavaşlatması
         Vector3 move = (transform.right * input.x + transform.forward * input.y) * speed;
 
         if (acceptInput && grounded && keyboard.spaceKey.wasPressedThisFrame)

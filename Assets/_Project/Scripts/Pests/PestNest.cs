@@ -36,6 +36,8 @@ public class PestNest : MonoBehaviour, IDamageable
     public Vector3 EntrancePosition => spawnPoint != null ? spawnPoint.position : transform.position;
     // Sahnede hâlâ ayakta olan yuva sayısı (JobManager okur).
     public static int ActiveNestCount { get; private set; }
+    // Herhangi bir yuva yok edilince tetiklenir (yuvanın giriş konumu). AnomalyManager dinler.
+    public static event System.Action<Vector3> OnAnyNestDestroyed;
     // Ayakta olan yuvalar (yuvasız böcekler en yakınına saklanır).
     public static IReadOnlyList<PestNest> ActiveNests => activeNests;
     private static readonly List<PestNest> activeNests = new List<PestNest>();
@@ -61,6 +63,7 @@ public class PestNest : MonoBehaviour, IDamageable
     {
         ActiveNestCount = 0;
         activeNests.Clear();
+        OnAnyNestDestroyed = null;
     }
 
     // Bileşenleri ve bekleme nesnelerini bir kere hazırlar.
@@ -233,6 +236,7 @@ public class PestNest : MonoBehaviour, IDamageable
         SetVisible(false);
         RemoveFromActiveCount();
         onNestDestroyed?.Invoke();
+        OnAnyNestDestroyed?.Invoke(EntrancePosition);
 
         StartCoroutine(DisableAfterDelay());
     }

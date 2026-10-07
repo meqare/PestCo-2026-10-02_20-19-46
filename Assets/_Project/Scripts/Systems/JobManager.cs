@@ -19,6 +19,8 @@ public class JobManager : MonoBehaviour
     public static JobManager Instance { get; private set; }
     // İş bitince tetiklenir (ResultScreen dinler).
     public static event Action<JobResult> OnJobComplete;
+    // İş başlayınca (Start sonunda) tetiklenir (AnomalyManager dinler).
+    public static event Action OnJobStarted;
     // Öldürülen veya toplam böcek değişince tetiklenir: (öldürülen, toplam). HUD dinler.
     public event Action<int, int> OnPestCountChanged;
     // Kalan yuva sayısı değişince tetiklenir: (kalan, toplam). HUD dinler.
@@ -69,6 +71,7 @@ public class JobManager : MonoBehaviour
     {
         Instance = null;
         OnJobComplete = null;
+        OnJobStarted = null;
     }
 
     // Singleton'ı kurar.
@@ -102,6 +105,8 @@ public class JobManager : MonoBehaviour
             Debug.LogError("JobManager: hic yuva bulunamadi, is bitmeyecek! 'PEST CO/Fix - Tum Yuvalari Duzelt' menusunu calistir.", this);
         else
             Debug.Log($"Toplam yuva bulundu: {totalNests}", this);
+
+        OnJobStarted?.Invoke();
     }
 
     // Tur başında hedefi yazar; tüm yuvalar yok olduysa ve yeterli böcek öldürüldüyse işi bitirir.
@@ -172,6 +177,11 @@ public class JobManager : MonoBehaviour
         JobResult result = CalculateResult();
         Debug.Log($"Is bitti: {PestsKilled}/{TotalPestTarget} bocek = %{result.CleanedPercent}, " +
                   $"{result.DurationSeconds:0}s, not {result.Grade}", this);
+        // Kazancı ve öldürülen böcekleri oyuncu verisine işle (kaydeder).
+        if (GameManager.Instance != null)
+            GameManager.Instance.RegisterJobComplete(result.Earnings, PestsKilled);
+        else
+            Debug.LogWarning("JobManager: GameManager sahnede yok, kazanc kaydedilmedi.", this);
         OnJobComplete?.Invoke(result);
     }
 
