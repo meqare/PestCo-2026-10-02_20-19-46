@@ -775,6 +775,31 @@ public static class PestCoSetup
     }
 
     // ------------------------------------------------------------------
+    // KONTRAT SİSTEMİ (Hafta 6)
+    // ------------------------------------------------------------------
+
+    // Geçici bir ContractGenerator ile 3 rastgele kontrat üretip Console'a yazar.
+    [MenuItem("PEST CO/Hafta 6/3 - ContractGenerator Test", priority = 63)]
+    private static void TestContractGenerator()
+    {
+        var go = new GameObject("ContractGeneratorTest") { hideFlags = HideFlags.HideAndDontSave };
+        try
+        {
+            var gen = go.AddComponent<ContractGenerator>();
+            foreach (ContractData c in gen.GenerateContracts(3))
+            {
+                Debug.Log($"📄 {c.contractId} | {c.title} | {c.district} | {c.address} | " +
+                          $"zorluk {c.difficulty} | ödül {c.baseReward} | {c.pestSpecies} | " +
+                          $"{c.requiredTime}sn | {c.modifier}");
+            }
+        }
+        finally
+        {
+            Object.DestroyImmediate(go);
+        }
+    }
+
+    // ------------------------------------------------------------------
     // INSPECTOR ALANI YAZMA
     // ------------------------------------------------------------------
 
