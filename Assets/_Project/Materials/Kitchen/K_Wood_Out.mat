@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: K_Wood_Out
+  m_Shader: {fileID: 4800000, guid: 38d638ac933948a4d9a2e63547911eda, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BrushTex:
+        m_Texture: {fileID: 2800000, guid: 1f5bd1f59369bfe4bb7faf3d9bcf7c72, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _BrushScale: 1.5
+    - _BrushStrength: 0.12
+    - _GradStrength: 0.28
+    - _LampBoost: 0.9
+    - _OutlinePixels: 2
+    - _RimStrength: 0.35
+    - _Softness: 0.18
+    - _SpecSize: 0.95
+    - _SpecStrength: 0
+    - _Threshold: 0.5
+    m_Colors:
+    - _BaseColor: {r: 0.65882355, g: 0.4, b: 0.18039216, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _OutlineColor: {r: 0.17733333, g: 0.108705886, b: 0.041176468, a: 1}
+    - _ShadowColor: {r: 0.46666667, g: 0.25882354, b: 0.09803922, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
