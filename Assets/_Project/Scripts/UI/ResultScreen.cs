@@ -186,7 +186,7 @@ public class ResultScreen : MonoBehaviour
         target.localScale = Vector3.one;
     }
 
-    // DEVAM: şimdilik paneli kapatır ve oyuna geri döner.
+    // DEVAM: karne kazancı JobManager'da zaten işlendi, burada tekrar işlenmez. Hub'a döner.
     public void Continue()
     {
         if (!isOpen) return;
@@ -202,7 +202,14 @@ public class ResultScreen : MonoBehaviour
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        SetGameplayEnabled(true);
+
+        if (SceneLoader.Instance == null)
+        {
+            Debug.LogError("ResultScreen: Sahnede SceneLoader yok, Hub'a dönülemedi.", this);
+            SetGameplayEnabled(true);
+            return;
+        }
+        SceneLoader.Instance.LoadHub();
     }
 
     // TEKRAR: zamanı normale döndürür ve aktif sahneyi baştan yükler.
@@ -210,7 +217,7 @@ public class ResultScreen : MonoBehaviour
     {
         isOpen = false;
         Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     // Oyuncu kontrollerini topluca açar/kapatır.

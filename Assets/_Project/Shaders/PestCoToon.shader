@@ -16,6 +16,10 @@ Shader "PestCo/Toon"
         _RimStrength ("Kenar Isigi", Range(0,1)) = 0.35
         _GradStrength ("Zemin Koyulasma", Range(0,0.6)) = 0.28
         _LampBoost ("Ek Isik (Lamba) Gucu", Range(0,2)) = 0.9
+        [Normal] _BumpMap ("Normal Map (opsiyonel)", 2D) = "bump" {}
+        _BumpScale ("Normal Siddeti", Range(0,2)) = 1.0
+        _HiStrength ("Parlak Bant Siddeti", Range(0,0.5)) = 0.16
+        _AmbientStrength ("Ortam Yansimasi", Range(0,1)) = 0.5
         [HDR] _EmissionColor ("Emisyon", Color) = (0,0,0,1)
         _OutlineColor ("Kontur Renk", Color) = (0.1,0.2,0.18,1)
         _OutlinePixels ("Kontur Kalinligi (px)", Float) = 2.0
@@ -39,18 +43,20 @@ Shader "PestCo/Toon"
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
+            #pragma shader_feature_local_fragment _NORMALMAP
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             TEXTURE2D(_BrushTex); SAMPLER(sampler_BrushTex);
             TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
+            TEXTURE2D(_BumpMap); SAMPLER(sampler_BumpMap);
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor, _ShadowColor, _EmissionColor, _OutlineColor; float4 _BaseMap_ST;
-                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength;
+                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength;
             CBUFFER_END
 
-            struct A { float4 posOS : POSITION; float3 nOS : NORMAL; float2 uv : TEXCOORD0; };
-            struct V { float4 posCS : SV_POSITION; float3 posWS : TEXCOORD0; half3 nWS : TEXCOORD1; float2 uv : TEXCOORD2; };
+            struct A { float4 posOS : POSITION; float3 nOS : NORMAL; float4 tOS : TANGENT; float2 uv : TEXCOORD0; };
+            struct V { float4 posCS : SV_POSITION; float3 posWS : TEXCOORD0; half3 nWS : TEXCOORD1; float2 uv : TEXCOORD2; half4 tWS : TEXCOORD3; };
 
             V vert(A i)
             {
@@ -59,6 +65,7 @@ Shader "PestCo/Toon"
                 o.nWS = TransformObjectToWorldNormal(i.nOS);
                 o.posCS = TransformWorldToHClip(o.posWS);
                 o.uv = i.uv * _BaseMap_ST.xy + _BaseMap_ST.zw;
+                o.tWS = half4(TransformObjectToWorldDir(i.tOS.xyz), i.tOS.w * GetOddNegativeScale());
                 return o;
             }
 
@@ -70,6 +77,11 @@ Shader "PestCo/Toon"
             half4 frag(V i) : SV_Target
             {
                 half3 n = normalize(i.nWS);
+                #if defined(_NORMALMAP)
+                    half3 tn = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, i.uv), _BumpScale);
+                    half3 bWS = cross(n, i.tWS.xyz) * i.tWS.w;
+                    n = normalize(tn.x * i.tWS.xyz + tn.y * bWS + tn.z * n);
+                #endif
                 // UV'den bagimsiz uc eksenli fircaizi
                 half3 w = pow(abs(n), 4); w /= (w.x + w.y + w.z);
                 half b = SAMPLE_TEXTURE2D(_BrushTex, sampler_BrushTex, i.posWS.zy * _BrushScale).r * w.x
@@ -103,7 +115,13 @@ Shader "PestCo/Toon"
                 half lampT = saturate(dot(extra, half3(0.33h,0.33h,0.33h))) * _LampBoost;
                 half3 warm = extra / max(max(extra.r, max(extra.g, extra.b)), 1e-3h);
                 half tt = saturate(t + lampT * 0.9h);
+                // gokyuzu/zemin ortam yansimasi: golge tarafi yukari bakinca soguk, asagi bakinca sicak
+                half3 amb = lerp(half3(0.62h, 0.50h, 0.38h), half3(0.62h, 0.76h, 1.0h), n.y * 0.5h + 0.5h);
+                shd = lerp(shd, shd * amb * 1.55h, _AmbientStrength * 0.55h);
                 col = lerp(shd, lit, tt) * brush;
+                // ucuncu parlak bant: isigin en cok vurdugu yer boyali vurgu
+                half hiT = smoothstep(_Threshold + 0.26h - _Softness, _Threshold + 0.26h + _Softness, dot(n, ml.direction) * 0.5h + 0.5h) * ml.shadowAttenuation;
+                col += lit * hiT * _HiStrength * brush;
                 col *= lerp(half3(1,1,1), lerp(half3(1,1,1), warm, 0.35h), saturate(lampT));
                 // gunes rengi (lit kisima sicak ton)
                 half3 sunTint = ml.color / max(max(ml.color.r, max(ml.color.g, ml.color.b)), 1e-3h);
@@ -145,7 +163,7 @@ Shader "PestCo/Toon"
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor, _ShadowColor, _EmissionColor, _OutlineColor; float4 _BaseMap_ST;
-                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength;
+                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength;
             CBUFFER_END
 
             struct A { float4 posOS : POSITION; float3 nOS : NORMAL; };
@@ -178,6 +196,10 @@ Shader "PestCo/Toon"
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+            CBUFFER_START(UnityPerMaterial)
+                half4 _BaseColor, _ShadowColor, _EmissionColor, _OutlineColor; float4 _BaseMap_ST;
+                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength;
+            CBUFFER_END
             float3 _LightDirection; float3 _LightPosition;
             struct A { float4 posOS : POSITION; float3 nOS : NORMAL; };
             struct V { float4 posCS : SV_POSITION; };
@@ -213,6 +235,10 @@ Shader "PestCo/Toon"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            CBUFFER_START(UnityPerMaterial)
+                half4 _BaseColor, _ShadowColor, _EmissionColor, _OutlineColor; float4 _BaseMap_ST;
+                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength;
+            CBUFFER_END
             struct A { float4 posOS : POSITION; };
             struct V { float4 posCS : SV_POSITION; };
             V vert(A i) { V o; o.posCS = TransformObjectToHClip(i.posOS.xyz); return o; }
@@ -230,6 +256,10 @@ Shader "PestCo/Toon"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            CBUFFER_START(UnityPerMaterial)
+                half4 _BaseColor, _ShadowColor, _EmissionColor, _OutlineColor; float4 _BaseMap_ST;
+                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength;
+            CBUFFER_END
             struct A { float4 posOS : POSITION; float3 nOS : NORMAL; };
             struct V { float4 posCS : SV_POSITION; half3 n : TEXCOORD0; };
             V vert(A i) { V o; o.posCS = TransformObjectToHClip(i.posOS.xyz); o.n = TransformObjectToWorldNormal(i.nOS); return o; }

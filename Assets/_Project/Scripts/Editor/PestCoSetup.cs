@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEditorInternal;
 using UnityEngine;
+using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
 // PEST CO editör kurulum motoru. Menü komutları bu yardımcıları kullanarak sahneyi tek tıkla kurar.
@@ -797,6 +798,245 @@ public static class PestCoSetup
         {
             Object.DestroyImmediate(go);
         }
+    }
+
+    // Canvas altına JobBoardUI + JobBoardPanel (3 kart, BAŞLA, KAPAT) kurar (tekrar çalıştırılabilir).
+    [MenuItem("PEST CO/Hafta 6/4 - JobBoard UI Kur", priority = 64)]
+    private static void SetupJobBoardUI()
+    {
+        if (Application.isPlaying)
+        {
+            Debug.LogError("PEST CO: JobBoard kurmak Play modunda calismaz, once Play'i durdur.");
+            return;
+        }
+
+        Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            Debug.LogError("PEST CO: Sahnede Canvas yok, JobBoard kurulamadi.");
+            return;
+        }
+
+        // Eski JobBoardUI varsa sil.
+        foreach (JobBoardUI eski in Object.FindObjectsByType<JobBoardUI>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            Undo.DestroyObjectImmediate(eski.gameObject);
+
+        // Gerekli yöneticiler (yoksa oluştur).
+        if (Object.FindFirstObjectByType<ContractGenerator>() == null)
+        {
+            var g = new GameObject("ContractGenerator", typeof(ContractGenerator));
+            Undo.RegisterCreatedObjectUndo(g, "ContractGenerator");
+        }
+        if (Object.FindFirstObjectByType<SceneLoader>() == null)
+        {
+            var g = new GameObject("SceneLoader", typeof(SceneLoader));
+            Undo.RegisterCreatedObjectUndo(g, "SceneLoader");
+        }
+
+        var root = new GameObject("JobBoardUI", typeof(RectTransform));
+        Undo.RegisterCreatedObjectUndo(root, "JobBoard kur");
+        root.transform.SetParent(canvas.transform, false);
+        StretchRect((RectTransform)root.transform);
+
+        // Panel: koyu, ekranı kaplayan arka plan.
+        var panel = new GameObject("JobBoardPanel", typeof(RectTransform), typeof(Image));
+        panel.transform.SetParent(root.transform, false);
+        StretchRect((RectTransform)panel.transform);
+        panel.GetComponent<Image>().color = new Color(0.05f, 0.06f, 0.08f, 0.92f);
+
+        // Başlık
+        var title = CreateBoardText(panel.transform, "Title", "İŞ PANOSU", 64f, TMPro.TextAlignmentOptions.Center);
+        var titleRect = (RectTransform)title.transform;
+        titleRect.anchorMin = new Vector2(0f, 1f);
+        titleRect.anchorMax = new Vector2(1f, 1f);
+        titleRect.pivot = new Vector2(0.5f, 1f);
+        titleRect.anchoredPosition = new Vector2(0f, -40f);
+        titleRect.sizeDelta = new Vector2(0f, 90f);
+
+        // Kartlar: yan yana
+        var row = new GameObject("Cards", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        row.transform.SetParent(panel.transform, false);
+        var rowRect = (RectTransform)row.transform;
+        rowRect.anchorMin = rowRect.anchorMax = rowRect.pivot = new Vector2(0.5f, 0.5f);
+        rowRect.anchoredPosition = new Vector2(0f, 20f);
+        rowRect.sizeDelta = new Vector2(1200f, 460f);
+        var h = row.GetComponent<HorizontalLayoutGroup>();
+        h.spacing = 30f;
+        h.childAlignment = TextAnchor.MiddleCenter;
+        h.childControlWidth = h.childControlHeight = true;
+        h.childForceExpandWidth = h.childForceExpandHeight = true;
+
+        var cardViews = new JobBoardUI.CardView[3];
+        for (int i = 0; i < 3; i++)
+            cardViews[i] = CreateJobCard(row.transform, i);
+
+        // Altta BAŞLA ve KAPAT
+        var start = CreateBoardButton(panel.transform, "StartButton", "BAŞLA", new Vector2(-140f, 70f), new Color(0.2f, 0.6f, 0.3f));
+        var close = CreateBoardButton(panel.transform, "CloseButton", "KAPAT", new Vector2(140f, 70f), new Color(0.6f, 0.2f, 0.2f));
+
+        var ui = root.AddComponent<JobBoardUI>();
+        SetPrivateField(ui, "panel", panel);
+        SetPrivateField(ui, "startButton", start);
+        SetPrivateField(ui, "closeButton", close);
+
+        var so = new SerializedObject(ui);
+        SerializedProperty arr = so.FindProperty("cards");
+        arr.arraySize = cardViews.Length;
+        for (int i = 0; i < cardViews.Length; i++)
+        {
+            SerializedProperty e = arr.GetArrayElementAtIndex(i);
+            e.FindPropertyRelative("root").objectReferenceValue = cardViews[i].root;
+            e.FindPropertyRelative("title").objectReferenceValue = cardViews[i].title;
+            e.FindPropertyRelative("district").objectReferenceValue = cardViews[i].district;
+            e.FindPropertyRelative("reward").objectReferenceValue = cardViews[i].reward;
+            e.FindPropertyRelative("difficulty").objectReferenceValue = cardViews[i].difficulty;
+            e.FindPropertyRelative("selectButton").objectReferenceValue = cardViews[i].selectButton;
+            e.FindPropertyRelative("highlight").objectReferenceValue = cardViews[i].highlight;
+        }
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        panel.SetActive(false); // başta kapalı
+        MarkDirty(root);
+        Debug.Log("✅ JobBoard UI kuruldu (JobBoardUI.Instance.Open() ile ac)");
+    }
+
+    private static void StretchRect(RectTransform rect)
+    {
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+    }
+
+    private static TMPro.TextMeshProUGUI CreateBoardText(Transform parent, string ad, string icerik, float boyut, TMPro.TextAlignmentOptions hiza)
+    {
+        var go = new GameObject(ad, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var text = go.AddComponent<TMPro.TextMeshProUGUI>();
+        text.text = icerik;
+        text.fontSize = boyut;
+        text.alignment = hiza;
+        text.color = Color.white;
+        text.raycastTarget = false;
+        return text;
+    }
+
+    private static Button CreateBoardButton(Transform parent, string ad, string yazi, Vector2 konum, Color renk)
+    {
+        var go = new GameObject(ad, typeof(RectTransform), typeof(Image), typeof(Button));
+        go.transform.SetParent(parent, false);
+        var rect = (RectTransform)go.transform;
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0f);
+        rect.anchoredPosition = konum;
+        rect.sizeDelta = new Vector2(240f, 70f);
+        var img = go.GetComponent<Image>();
+        img.color = renk;
+
+        var button = go.GetComponent<Button>();
+        button.targetGraphic = img;
+
+        var label = CreateBoardText(go.transform, "Label", yazi, 36f, TMPro.TextAlignmentOptions.Center);
+        StretchRect((RectTransform)label.transform);
+        return button;
+    }
+
+    // Tek bir kontrat kartı: başlık, bölge, ödül, zorluk, SEÇ butonu.
+    private static JobBoardUI.CardView CreateJobCard(Transform parent, int index)
+    {
+        var card = new GameObject($"Card_{index}", typeof(RectTransform), typeof(Image), typeof(Outline), typeof(VerticalLayoutGroup));
+        card.transform.SetParent(parent, false);
+        card.GetComponent<Image>().color = new Color(0.14f, 0.16f, 0.2f, 1f);
+
+        var outline = card.GetComponent<Outline>();
+        outline.effectColor = new Color(0.2f, 1f, 0.3f, 1f);
+        outline.effectDistance = new Vector2(6f, -6f);
+        outline.enabled = false;
+
+        var v = card.GetComponent<VerticalLayoutGroup>();
+        v.padding = new RectOffset(20, 20, 20, 20);
+        v.spacing = 12f;
+        v.childAlignment = TextAnchor.UpperCenter;
+        v.childControlWidth = v.childControlHeight = true;
+        v.childForceExpandWidth = true;
+        v.childForceExpandHeight = false;
+
+        var title = CreateBoardText(card.transform, "Title", "Başlık", 38f, TMPro.TextAlignmentOptions.Center);
+        var district = CreateBoardText(card.transform, "District", "Bölge", 26f, TMPro.TextAlignmentOptions.Center);
+        var reward = CreateBoardText(card.transform, "Reward", "0$", 44f, TMPro.TextAlignmentOptions.Center);
+        reward.color = new Color(1f, 0.85f, 0.3f);
+        var difficulty = CreateBoardText(card.transform, "Difficulty", "*", 36f, TMPro.TextAlignmentOptions.Center);
+        difficulty.color = new Color(1f, 0.6f, 0.2f);
+        foreach (var t in new[] { title, district, reward, difficulty })
+            t.gameObject.AddComponent<LayoutElement>().preferredHeight = t == reward ? 70f : 60f;
+
+        var select = CreateBoardButton(card.transform, "SelectButton", "SEÇ", Vector2.zero, new Color(0.25f, 0.4f, 0.7f));
+        var le = select.gameObject.AddComponent<LayoutElement>();
+        le.preferredHeight = 70f;
+
+        return new JobBoardUI.CardView
+        {
+            root = card,
+            title = title,
+            district = district,
+            reward = reward,
+            difficulty = difficulty,
+            selectButton = select,
+            highlight = outline
+        };
+    }
+
+    // ------------------------------------------------------------------
+    // ALET VERİSİ (Hafta 6)
+    // ------------------------------------------------------------------
+
+    private const string ToolDataFolder = "Assets/_Project/Data/Tools";
+
+    // 4 ToolData asset'ini oluşturur (varsa dokunmaz) ve sahnedeki ToolManager'a listeyi bağlar.
+    [MenuItem("PEST CO/Hafta 6/5 - Tool Assets Kur", priority = 65)]
+    private static void SetupToolAssets()
+    {
+        EnsureFolder(ToolDataFolder);
+
+        var tools = new[]
+        {
+            CreateToolAsset("Tool_Spray", "spray", "Sprey", "Standart sprey. Temel haşere öldürme aracı.", 0, true),
+            CreateToolAsset("Tool_Vacuum", "vacuum", "Vakum", "Küçük haşereleri içine çeker. 5 kapasite.", 0, true),
+            CreateToolAsset("Tool_Trap", "trap", "Tuzak", "Yere konur, haşere yaklaşınca kapanır.", 500, false),
+            CreateToolAsset("Tool_Racket", "racket", "Elektrikli Raket", "Uçan haşerelere karşı etkili. Anlık öldürür.", 1000, false)
+        };
+        AssetDatabase.SaveAssets();
+
+        ToolManager manager = Object.FindFirstObjectByType<ToolManager>();
+        if (manager != null)
+        {
+            var so = new SerializedObject(manager);
+            SerializedProperty arr = so.FindProperty("allTools");
+            arr.arraySize = tools.Length;
+            for (int i = 0; i < tools.Length; i++)
+                arr.GetArrayElementAtIndex(i).objectReferenceValue = tools[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
+            MarkDirty(manager.gameObject);
+        }
+
+        Debug.Log("✅ Tool asset'leri hazir: " + ToolDataFolder +
+                  (manager != null ? " (ToolManager listesi dolduruldu)" : " (sahnede ToolManager yok)"));
+    }
+
+    // Asset yoksa oluşturur, varsa olanı döndürür (elle yapılan değişiklikleri ezmez).
+    private static ToolData CreateToolAsset(string dosyaAdi, string id, string ad, string aciklama, int fiyat, bool varsayilanSahip)
+    {
+        string path = $"{ToolDataFolder}/{dosyaAdi}.asset";
+        var mevcut = AssetDatabase.LoadAssetAtPath<ToolData>(path);
+        if (mevcut != null) return mevcut;
+
+        var tool = ScriptableObject.CreateInstance<ToolData>();
+        tool.toolId = id;
+        tool.toolName = ad;
+        tool.description = aciklama;
+        tool.price = fiyat;
+        tool.isOwnedByDefault = varsayilanSahip;
+        AssetDatabase.CreateAsset(tool, path);
+        return tool;
     }
 
     // ------------------------------------------------------------------

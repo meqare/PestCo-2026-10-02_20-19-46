@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -12,6 +13,11 @@ public class PestSpawner : MonoBehaviour
     [SerializeField, Min(0.1f)] private float spawnAreaRadius = 10f;
     [Tooltip("Boşsa bu objenin konumu merkez alınır.")]
     [SerializeField] private Transform spawnCenter;
+    [Header("Başlangıç")]
+    [Tooltip("Oyun başladıktan sonra böceklerin ilk yerleşmesine kadar beklenen süre (sn).")]
+    [SerializeField, Min(0f)] private float startDelay = 5f;
+    [Tooltip("Yerleşim bir karede takılmasın diye her karede en fazla bu kadar böcek yerleşir.")]
+    [SerializeField, Min(1)] private int spawnsPerFrame = 5;
 
     // Sahnede havuzdan çıkmış aktif böcek sayısı.
     public int ActivePestCount => PestPool.Instance != null ? PestPool.Instance.ActiveCount : 0;
@@ -19,7 +25,7 @@ public class PestSpawner : MonoBehaviour
     // Sadece böceğin ajan tipine ait NavMesh'te nokta aranır.
     private NavMeshQueryFilter navFilter;
 
-    // Başlangıçta spawnCount kadar böcek yerleştirir; nokta bulunamayanı atlar.
+    // startDelay kadar bekler, sonra spawnCount kadar böceği kareye yayarak yerleştirir; nokta bulunamayanı atlar.
     private void Start()
     {
         if (PestPool.Instance == null)
@@ -31,11 +37,24 @@ public class PestSpawner : MonoBehaviour
         navFilter.agentTypeID = PestPool.Instance.AgentTypeID;
         navFilter.areaMask = NavMesh.AllAreas;
 
+        StartCoroutine(SpawnRoutine());
+    }
+
+    private IEnumerator SpawnRoutine()
+    {
+        if (startDelay > 0f)
+            yield return new WaitForSeconds(startDelay);
+        while (!SpawnSwitch.Enabled)
+            yield return null;
+
         int spawned = 0;
         for (int i = 0; i < spawnCount; i++)
         {
             if (TryGetRandomPoint(out Vector3 point) && SpawnOne(point))
                 spawned++;
+
+            if ((i + 1) % spawnsPerFrame == 0)
+                yield return null;
         }
 
         if (spawned < spawnCount)

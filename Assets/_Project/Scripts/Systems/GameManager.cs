@@ -51,7 +51,7 @@ public class GameManager : MonoBehaviour
     }
 
     // Güncel veriyi diske yazar.
-    private void SaveNow()
+    public void SaveNow()
     {
         if (PestCoSaveSystem.Instance != null)
             PestCoSaveSystem.Instance.Save(Data);

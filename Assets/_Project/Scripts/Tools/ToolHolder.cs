@@ -12,6 +12,8 @@ public class ToolHolder : MonoBehaviour
     [Header("References")]
     [Tooltip("Used to read movement speed for bob. Auto-found in parents if empty.")]
     [SerializeField] private CharacterController characterController;
+    [Tooltip("Duvar yakınlığında silahı geri çeker. Boş bırakılırsa aynı objede aranır.")]
+    [SerializeField] private WeaponObstruction wallClearance;
 
     [Header("Sway")]
     [SerializeField] private float swayPositionAmount = 0.0015f;
@@ -53,6 +55,8 @@ public class ToolHolder : MonoBehaviour
         baseRotation = transform.localRotation;
         if (characterController == null)
             characterController = GetComponentInParent<CharacterController>();
+        if (wallClearance == null)
+            wallClearance = GetComponent<WeaponObstruction>();
 
         for (int i = 0; i < tools.Count; i++)
             if (tools[i] != null) tools[i].SetActive(false);
@@ -65,9 +69,16 @@ public class ToolHolder : MonoBehaviour
         UpdateSway();
         UpdateBob();
         float switchOffset = UpdateSwitchAnimation();
+        Vector3 wallOffset = GetWallOffsetLocal();
 
-        transform.localPosition = basePosition + swayPosition + bobPosition + Vector3.down * switchOffset;
+        transform.localPosition = basePosition + swayPosition + bobPosition + wallOffset + Vector3.down * switchOffset;
         transform.localRotation = baseRotation * swayRotation;
+    }
+
+    // WeaponObstruction'ın geri/aşağı çekilmesi zaten socket'in parent'ı (kamera) uzayındadır.
+    private Vector3 GetWallOffsetLocal()
+    {
+        return wallClearance != null ? wallClearance.LocalOffset : Vector3.zero;
     }
 
     private void HandleSwitchInput()

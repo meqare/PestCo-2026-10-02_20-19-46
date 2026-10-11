@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -13,6 +14,9 @@ public class SpiderSpawner : MonoBehaviour
     [SerializeField, Min(0.1f)] private float spawnAreaRadius = 10f;
     [Tooltip("Boşsa bu objenin konumu merkez alınır.")]
     [SerializeField] private Transform spawnCenter;
+    [Header("Başlangıç")]
+    [Tooltip("Oyun başladıktan sonra örümceklerin ilk yerleşmesine kadar beklenen süre (sn).")]
+    [SerializeField, Min(0f)] private float startDelay = 5f;
 
     public int ActiveCount { get; private set; }
 
@@ -24,6 +28,17 @@ public class SpiderSpawner : MonoBehaviour
             return;
         }
 
+        StartCoroutine(SpawnRoutine());
+    }
+
+    // startDelay kadar bekler, sonra her karede en fazla bir örümcek yerleştirir (takılmayı önler).
+    private IEnumerator SpawnRoutine()
+    {
+        if (startDelay > 0f)
+            yield return new WaitForSeconds(startDelay);
+        while (!SpawnSwitch.Enabled)
+            yield return null;
+
         int agentType = PestPool.Instance != null ? PestPool.Instance.AgentTypeID : 0;
         var filter = new NavMeshQueryFilter { agentTypeID = agentType, areaMask = NavMesh.AllAreas };
         Vector3 center = spawnCenter != null ? spawnCenter.position : transform.position;
@@ -31,10 +46,13 @@ public class SpiderSpawner : MonoBehaviour
         int count = Mathf.Min(spawnCount, MaxSpiders);
         for (int i = 0; i < count; i++)
         {
-            if (!TryGetFloorPoint(center, filter, out Vector3 floorPoint)) continue;
-            Spider s = Instantiate(spiderPrefab, floorPoint, Quaternion.Euler(0f, Random.Range(0f, 360f), 0f), transform);
-            s.Init(floorPoint, filter);
-            ActiveCount++;
+            if (TryGetFloorPoint(center, filter, out Vector3 floorPoint))
+            {
+                Spider s = Instantiate(spiderPrefab, floorPoint, Quaternion.Euler(0f, Random.Range(0f, 360f), 0f), transform);
+                s.Init(floorPoint, filter);
+                ActiveCount++;
+            }
+            yield return null;
         }
 
         if (ActiveCount < count)

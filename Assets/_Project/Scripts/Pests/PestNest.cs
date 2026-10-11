@@ -17,6 +17,8 @@ public class PestNest : MonoBehaviour, IDamageable
     [SerializeField] private Transform spawnPoint;
     [Tooltip("Böcekler üst üste doğmasın diye spawnPoint etrafındaki rastgele kayma.")]
     [SerializeField, Min(0f)] private float spawnJitter = 0.2f;
+    [Tooltip("Oyun başladıktan sonra yuvanın ilk doğumuna kadar beklenen süre (sn).")]
+    [SerializeField, Min(0f)] private float startDelay = 5f;
 
     [Header("Health")]
     [SerializeField, Min(1f)] private float maxHealth = 60f;
@@ -121,11 +123,14 @@ public class PestNest : MonoBehaviour, IDamageable
     // Her spawnInterval'da bir, sınır dolmadıysa bir böcek doğurur.
     private IEnumerator SpawnLoop()
     {
+        if (startDelay > 0f)
+            yield return new WaitForSeconds(startDelay);
+
         while (true)
         {
             yield return spawnWait;
 
-            if (livingPests.Count < maxActivePests)
+            if (SpawnSwitch.Enabled && livingPests.Count < maxActivePests)
             {
                 Pest pest = SpawnPest();
                 if (pest != null)

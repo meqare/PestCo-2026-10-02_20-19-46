@@ -31,17 +31,24 @@ Material:
         m_Texture: {fileID: 2800000, guid: 1f5bd1f59369bfe4bb7faf3d9bcf7c72, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _AmbientStrength: 0.5
     - _BrushScale: 1.5
     - _BrushStrength: 0.12
+    - _BumpScale: 1
     - _GradStrength: 0.28
+    - _HiStrength: 0.16
     - _LampBoost: 0.9
     - _OutlinePixels: 2
     - _RimStrength: 0.35
     - _Softness: 0.18
-    - _SpecSize: 0.93
-    - _SpecStrength: 0.9
+    - _SpecSize: 0.9
+    - _SpecStrength: 1.1
     - _Threshold: 0.5
     m_Colors:
     - _BaseColor: {r: 0.7882353, g: 0.81960785, b: 0.8509804, a: 1}

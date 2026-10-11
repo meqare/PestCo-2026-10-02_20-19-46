@@ -225,6 +225,10 @@ public class AnomalyManager : MonoBehaviour
 
     private IEnumerator Run(AnomalyData data)
     {
+        // Doğumlar kapalıyken anomali de başlamaz; SpawnSwitch açılınca zamanlayıcılar çalışmaya başlar.
+        while (!SpawnSwitch.Enabled)
+            yield return null;
+
         switch (data.type)
         {
             case AnomalyType.WallBreathing: yield return WallBreathing(data); break;
