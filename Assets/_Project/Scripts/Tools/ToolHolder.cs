@@ -37,6 +37,11 @@ public class ToolHolder : MonoBehaviour
 
     public int CurrentIndex { get; private set; } = -1;
     public GameObject CurrentTool => CurrentIndex >= 0 && CurrentIndex < tools.Count ? tools[CurrentIndex] : null;
+    public int ToolCount => tools.Count;
+    public GameObject GetTool(int index) => index >= 0 && index < tools.Count ? tools[index] : null;
+
+    // InventoryHotbar sahnedeyse rakam tuşlarını o dinler ve buraya RequestSwitch ile iletir.
+    public bool HandleNumberKeys { get; set; } = true;
 
     private Vector3 basePosition;
     private Quaternion baseRotation;
@@ -84,12 +89,16 @@ public class ToolHolder : MonoBehaviour
     private void HandleSwitchInput()
     {
         var keyboard = Keyboard.current;
-        if (keyboard == null) return;
+        if (keyboard == null || !HandleNumberKeys) return;
 
-        if (keyboard.digit1Key.wasPressedThisFrame) RequestSwitch(0);
-        else if (keyboard.digit2Key.wasPressedThisFrame) RequestSwitch(1);
-        else if (keyboard.digit3Key.wasPressedThisFrame) RequestSwitch(2);
-        else if (keyboard.digit4Key.wasPressedThisFrame) RequestSwitch(3);
+        for (int i = 0; i < tools.Count && i < 9; i++)
+        {
+            if (keyboard[Key.Digit1 + i].wasPressedThisFrame)
+            {
+                RequestSwitch(i);
+                return;
+            }
+        }
     }
 
     public void RequestSwitch(int index)
