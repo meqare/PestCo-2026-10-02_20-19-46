@@ -20,10 +20,10 @@ public class InventoryHotbar : MonoBehaviour
     [SerializeField] private float _bottomMargin = 12f;
 
     [Header("Renkler")]
-    [SerializeField] private Color _barColor = new Color(0f, 0f, 0f, 0.55f);
-    [SerializeField] private Color _slotBorderColor = new Color(0.22f, 0.22f, 0.22f, 1f);
-    [SerializeField] private Color _slotInnerColor = new Color(0.55f, 0.55f, 0.55f, 0.55f);
-    [SerializeField] private Color _selectColor = Color.white;
+    [SerializeField] private Color _barColor = new Color(0.05f, 0.06f, 0.09f, 0.82f);
+    [SerializeField] private Color _slotBorderColor = new Color(0.07f, 0.05f, 0.06f, 1f);
+    [SerializeField] private Color _slotInnerColor = new Color(0.27f, 0.3f, 0.42f, 1f);
+    [SerializeField] private Color _selectColor = new Color(1f, 0.84f, 0.2f);
     [SerializeField] private Color _horrorTint = new Color(0.8f, 0.5f, 1f);
 
     [Header("İsim Yazısı")]
@@ -66,7 +66,6 @@ public class InventoryHotbar : MonoBehaviour
         public RectTransform root;
         public Image icon;
         public TMP_Text count;
-        public TMP_Text countShadow;
         public bool isTool;
         public string toolName;
         public bool hasItem;
@@ -80,7 +79,6 @@ public class InventoryHotbar : MonoBehaviour
     private readonly List<Slot> _slots = new List<Slot>();
     private readonly List<ItemKey> _currentKeys = new List<ItemKey>();
     private readonly List<int> _currentCounts = new List<int>();
-    private static readonly Dictionary<string, Sprite> IconCache = new Dictionary<string, Sprite>();
 
     private RectTransform _selectFrame;
     private TMP_Text _nameText;
@@ -156,7 +154,7 @@ public class InventoryHotbar : MonoBehaviour
             slot.isTool = true;
             slot.toolName = data != null && !string.IsNullOrEmpty(data.toolName) ? data.toolName
                 : tool != null ? tool.name : $"Silah {i + 1}";
-            slot.icon.sprite = data != null && data.icon != null ? data.icon : PixelIcons.Tool(data != null ? data.toolId : null);
+            slot.icon.sprite = data != null && data.icon != null ? data.icon : CartoonIcons.Tool(data != null ? data.toolId : null);
             slot.icon.enabled = true;
         }
 
@@ -210,6 +208,7 @@ public class InventoryHotbar : MonoBehaviour
                 slot.key = key;
                 slot.amount = 0;
                 slot.icon.sprite = GetIcon(key);
+                slot.icon.color = GetIconTint(key);
                 slot.icon.enabled = true;
             }
 
@@ -291,6 +290,7 @@ public class InventoryHotbar : MonoBehaviour
         slot.hasItem = false;
         slot.amount = 0;
         slot.icon.sprite = null;
+        slot.icon.color = Color.white;
         slot.icon.enabled = false;
         slot.icon.rectTransform.localScale = Vector3.one;
         SetCountText(slot, 0);
@@ -301,7 +301,6 @@ public class InventoryHotbar : MonoBehaviour
     {
         string text = amount > 1 ? amount.ToString() : string.Empty;
         slot.count.text = text;
-        slot.countShadow.text = text;
     }
 
     #endregion
@@ -376,12 +375,21 @@ public class InventoryHotbar : MonoBehaviour
         _nameText.alpha = Mathf.Clamp01(_nameTimer / 0.5f);
     }
 
-    /// <summary>Yeni gelen eşyanın simgesi kısa bir an büyüyüp yerine oturur.</summary>
+    /// <summary>
+    /// Seçili slot hafifçe büyür (halka da onunla); yeni gelen eşyanın simgesi kısa bir an zıplar.
+    /// </summary>
     private void AnimatePop()
     {
+        float k = 1f - Mathf.Exp(-14f * Time.unscaledDeltaTime);
         for (int i = 0; i < _slots.Count; i++)
         {
             Slot slot = _slots[i];
+
+            float target = i == SelectedIndex ? 1.1f : 1f;
+            float s = Mathf.Lerp(slot.root.localScale.x, target, k);
+            slot.root.localScale = new Vector3(s, s, 1f);
+            if (i == SelectedIndex) _selectFrame.localScale = slot.root.localScale;
+
             if (slot.popTimer <= 0f) continue;
 
             slot.popTimer -= Time.unscaledDeltaTime;
@@ -431,7 +439,8 @@ public class InventoryHotbar : MonoBehaviour
         rect.anchoredPosition = new Vector2(0f, _bottomMargin);
 
         Image bar = CreateImage("Bar", rect, _barColor);
-        Stretch(bar.rectTransform);
+        SetRounded(bar, CartoonIcons.RoundedPanel(16));
+        Stretch(bar.rectTransform, -6f);
         bar.raycastTarget = false;
 
         float startX = -width * 0.5f + _slotSize * 0.5f;
@@ -441,11 +450,15 @@ public class InventoryHotbar : MonoBehaviour
             _slots.Add(CreateSlot(rect, i, position));
         }
 
-        // Seçim çerçevesi slotlardan biraz büyük, beyaz ve içi boş.
-        _selectFrame = CreateFrame("Selected", rect, _slotSize + 8f, 4f, _selectColor);
+        // Seçim halkası slotlardan biraz büyük, yuvarlak ve içi boş.
+        Image frame = CreateImage("Selected", rect, _selectColor);
+        SetRounded(frame, CartoonIcons.RoundedFrame(16, 5f));
+        _selectFrame = frame.rectTransform;
+        _selectFrame.anchorMin = _selectFrame.anchorMax = new Vector2(0.5f, 0.5f);
+        _selectFrame.sizeDelta = new Vector2(_slotSize + 12f, _slotSize + 12f);
         _selectFrame.anchoredPosition = _slots[0].root.anchoredPosition;
 
-        _nameText = CreateText("ItemName", rect, 22f, TextAlignmentOptions.Bottom);
+        _nameText = CreateText("ItemName", rect, 24f, TextAlignmentOptions.Bottom);
         _nameText.rectTransform.anchorMin = new Vector2(0f, 1f);
         _nameText.rectTransform.anchorMax = new Vector2(1f, 1f);
         _nameText.rectTransform.pivot = new Vector2(0.5f, 0f);
@@ -463,56 +476,42 @@ public class InventoryHotbar : MonoBehaviour
 
     private Slot CreateSlot(RectTransform parent, int index, Vector2 position)
     {
+        // Dış katman mürekkep kenarı, iç katman slotun rengi (çizgi film paneli).
         Image border = CreateImage("Slot" + (index + 1), parent, _slotBorderColor);
+        SetRounded(border, CartoonIcons.RoundedPanel(14));
         RectTransform root = border.rectTransform;
         root.anchorMin = root.anchorMax = new Vector2(0.5f, 0.5f);
         root.sizeDelta = new Vector2(_slotSize, _slotSize);
         root.anchoredPosition = position;
 
         Image inner = CreateImage("Inner", root, _slotInnerColor);
+        SetRounded(inner, CartoonIcons.RoundedPanel(12));
         Stretch(inner.rectTransform, 3f);
 
+        // Üst yarıda hafif parlama: panel şişkin dursun.
+        Image shine = CreateImage("Shine", inner.rectTransform, new Color(1f, 1f, 1f, 0.07f));
+        SetRounded(shine, CartoonIcons.RoundedPanel(10));
+        shine.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+        shine.rectTransform.anchorMax = Vector2.one;
+        shine.rectTransform.offsetMin = new Vector2(3f, 0f);
+        shine.rectTransform.offsetMax = new Vector2(-3f, -3f);
+
         Image icon = CreateImage("Icon", root, Color.white);
-        Stretch(icon.rectTransform, 8f);
+        Stretch(icon.rectTransform, 5f);
         icon.preserveAspect = true;
         icon.enabled = false;
 
-        TMP_Text shadow = CreateText("CountShadow", root, 20f, TextAlignmentOptions.BottomRight);
-        Stretch(shadow.rectTransform, 4f);
-        shadow.rectTransform.anchoredPosition = new Vector2(2f, -2f);
-        shadow.color = new Color(0.15f, 0.15f, 0.15f, 1f);
+        TMP_Text count = CreateText("Count", root, 22f, TextAlignmentOptions.BottomRight);
+        Stretch(count.rectTransform, 3f);
 
-        TMP_Text count = CreateText("Count", root, 20f, TextAlignmentOptions.BottomRight);
-        Stretch(count.rectTransform, 4f);
-
-        return new Slot { root = root, icon = icon, count = count, countShadow = shadow };
+        return new Slot { root = root, icon = icon, count = count };
     }
 
-    /// <summary>İçi boş kare çerçeve (dört kenar).</summary>
-    private static RectTransform CreateFrame(string name, RectTransform parent, float size, float thickness, Color color)
+    private static void SetRounded(Image image, Sprite sprite)
     {
-        var go = new GameObject(name, typeof(RectTransform));
-        var rect = (RectTransform)go.transform;
-        rect.SetParent(parent, false);
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = new Vector2(size, size);
-
-        Edge(rect, color, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, thickness));
-        Edge(rect, color, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, thickness));
-        Edge(rect, color, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(thickness, 0f));
-        Edge(rect, color, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(thickness, 0f));
-        return rect;
-    }
-
-    private static void Edge(RectTransform parent, Color color, Vector2 min, Vector2 max, Vector2 size)
-    {
-        Image edge = CreateImage("Edge", parent, color);
-        RectTransform rect = edge.rectTransform;
-        rect.anchorMin = min;
-        rect.anchorMax = max;
-        rect.pivot = new Vector2(Mathf.Approximately(min.x, max.x) ? min.x : 0.5f, Mathf.Approximately(min.y, max.y) ? min.y : 0.5f);
-        rect.sizeDelta = size;
-        rect.anchoredPosition = Vector2.zero;
+        image.sprite = sprite;
+        image.type = Image.Type.Sliced;
+        image.pixelsPerUnitMultiplier = 1f;
     }
 
     private static Image CreateImage(string name, Transform parent, Color color)
@@ -537,6 +536,9 @@ public class InventoryHotbar : MonoBehaviour
         text.overflowMode = TextOverflowModes.Overflow;
         text.raycastTarget = false;
         text.color = Color.white;
+        // Çizgi film yazısı: kalın siyah kontur.
+        text.outlineWidth = 0.28f;
+        text.outlineColor = new Color32(18, 12, 14, 255);
         return text;
     }
 
@@ -559,283 +561,20 @@ public class InventoryHotbar : MonoBehaviour
             Sprite custom = key.food == FoodType.NuclearSoda ? _nuclearSodaIcon
                 : key.food == FoodType.ExplosiveCandy ? _explosiveCandyIcon
                 : _cursedCookieIcon;
-            return custom != null ? custom : PixelIcons.Food(key.food);
+            return custom != null ? custom : CartoonIcons.Food(key.food);
         }
 
         if (key.bug.icon != null) return key.bug.icon;
 
         Color tint = key.state == BugState.Horror ? key.bug.horrorColor : key.bug.cuteColor;
-        return PixelIcons.Bug(tint);
+        return CartoonIcons.Bug(tint);
     }
 
-    /// <summary>16x16 piksel simgeler (Minecraft havası için nokta filtreli).</summary>
-    private static class PixelIcons
+    /// <summary>Modelden üretilmiş böcek simgesi Horror yakalandıysa mor tona boyanır.</summary>
+    private Color GetIconTint(ItemKey key)
     {
-        private static readonly string[] BugRows =
-        {
-            "................",
-            "....K......K....",
-            ".....K....K.....",
-            "......KKKK......",
-            ".....KWKKWK.....",
-            ".....KDDDDK.....",
-            "..K.KBBBBBBK.K..",
-            "...KBBBDDBBBK...",
-            "..K.KBBDDBBK.K..",
-            "...KBBBDDBBBK...",
-            "..K.KBBDDBBK.K..",
-            "....KBBDDBBK....",
-            ".....KBDDBK.....",
-            "......KKKK......",
-            "................",
-            "................",
-        };
-
-        private static readonly string[] SodaRows =
-        {
-            "................",
-            "....KSSSSSSK....",
-            "....KKKKKKKK....",
-            "....KGGGGGGK....",
-            "....KGLGGGGK....",
-            "....KGLYYGGK....",
-            "....KGYKKYGK....",
-            "....KGYKKYGK....",
-            "....KGLYYGGK....",
-            "....KGLGGGGK....",
-            "....KGLGGGGK....",
-            "....KGGGGGGK....",
-            "....KKKKKKKK....",
-            "....KSSSSSSK....",
-            "....KKKKKKKK....",
-            "................",
-        };
-
-        private static readonly string[] CandyRows =
-        {
-            "................",
-            "................",
-            "................",
-            "..KK........KK..",
-            "..KPK.KKKK.KPK..",
-            "..KPPKRRRRKPPK..",
-            "..KPPRRWRRRPPK..",
-            "..KPPRWRRRRPPK..",
-            "..KPPRRRRRRPPK..",
-            "..KPPKRRRRKPPK..",
-            "..KPK.KKKK.KPK..",
-            "..KK........KK..",
-            "................",
-            "................",
-            "................",
-            "................",
-        };
-
-        private static readonly string[] CookieRows =
-        {
-            "................",
-            "................",
-            ".....KKKKKK.....",
-            "....KCCCCCCK....",
-            "...KCCPCCCCCK...",
-            "..KCCCCCCPCCCK..",
-            "..KCPCCCCCCCCK..",
-            "..KCCCCCPCCCCK..",
-            "..KCCCCCCCCPCK..",
-            "..KCCPCCCCCCCK..",
-            "..KCCCCCCPCCCK..",
-            "...KCCCCCCCCK...",
-            "....KCCPCCCK....",
-            ".....KKKKKK.....",
-            "................",
-            "................",
-        };
-
-        private static readonly string[] SprayRows =
-        {
-            "................",
-            ".......KKK......",
-            "......KRRK.M....",
-            "......KKKK..M...",
-            ".....KSSSSK.....",
-            "....KBBBBBBK....",
-            "....KBWBBBBK....",
-            "....KBWBBBBK....",
-            "....KYYYYYYK....",
-            "....KYKKYYYK....",
-            "....KYYYYYYK....",
-            "....KBWBBBBK....",
-            "....KBBBBBBK....",
-            "....KBBBBBBK....",
-            "....KKKKKKKK....",
-            "................",
-        };
-
-        private static readonly string[] VacuumRows =
-        {
-            "................",
-            "................",
-            "................",
-            "..........KKKK..",
-            ".........KOOOOK.",
-            "KKKKKKKKKKOOOOK.",
-            "KSSSSSSSKOOWOOK.",
-            "KKKKKKKKKOOOOOK.",
-            ".........KOOOOK.",
-            "........KKKKKKK.",
-            "........KGK.....",
-            "........KGK.....",
-            "........KKK.....",
-            "................",
-            "................",
-            "................",
-        };
-
-        private static readonly string[] TrapRows =
-        {
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "....KKKKKKKK....",
-            "...KSSSSSSSSK...",
-            "...KSKKKKKKSK...",
-            "...KSK....KSK...",
-            "..KKKKKKKKKKKK..",
-            "..KCCCCCCCCCCK..",
-            "..KCCCYYCCCCCK..",
-            "..KCCCCCCCCCCK..",
-            "..KKKKKKKKKKKK..",
-            "................",
-            "................",
-        };
-
-        private static readonly string[] RacketRows =
-        {
-            "................",
-            "....KKKKKKK.....",
-            "...KSYSYSYSK....",
-            "..KSYSYSYSYSK...",
-            "..KYSYSYSYSYK...",
-            "..KSYSYSYSYSK...",
-            "..KYSYSYSYSYK...",
-            "...KSYSYSYSK....",
-            "....KKKSKKK.....",
-            "......KSK.......",
-            "......KBK.......",
-            "......KBK.......",
-            "......KBK.......",
-            "......KBK.......",
-            "......KKK.......",
-            "................",
-        };
-
-        /// <summary>ToolData.toolId'ye göre silah simgesi (spray, vacuum, trap, racket).</summary>
-        public static Sprite Tool(string toolId)
-        {
-            string cacheKey = "tool_" + (toolId ?? "none");
-            if (IconCache.TryGetValue(cacheKey, out Sprite cached) && cached != null) return cached;
-
-            var palette = new Dictionary<char, Color>
-            {
-                { 'K', new Color(0.08f, 0.06f, 0.06f) },
-                { 'W', Color.white },
-                { 'S', new Color(0.78f, 0.8f, 0.82f) },
-                { 'R', new Color(0.95f, 0.25f, 0.2f) },
-                { 'M', new Color(0.6f, 0.9f, 1f) },
-                { 'B', new Color(0.25f, 0.55f, 0.95f) },
-                { 'Y', new Color(1f, 0.9f, 0.2f) },
-                { 'O', new Color(1f, 0.55f, 0.15f) },
-                { 'G', new Color(0.35f, 0.35f, 0.38f) },
-                { 'C', new Color(0.72f, 0.48f, 0.25f) },
-            };
-
-            string[] rows;
-            switch (toolId)
-            {
-                case "vacuum": rows = VacuumRows; break;
-                case "trap": rows = TrapRows; break;
-                case "racket": rows = RacketRows; break;
-                default: rows = SprayRows; break;
-            }
-            return IconCache[cacheKey] = Draw(cacheKey, rows, palette);
-        }
-
-        public static Sprite Bug(Color tint)
-        {
-            string cacheKey = "bug_" + ColorUtility.ToHtmlStringRGBA(tint);
-            if (IconCache.TryGetValue(cacheKey, out Sprite cached) && cached != null) return cached;
-
-            var palette = new Dictionary<char, Color>
-            {
-                { 'K', new Color(0.08f, 0.06f, 0.06f) },
-                { 'W', Color.white },
-                { 'B', tint },
-                { 'D', Color.Lerp(tint, Color.black, 0.4f) },
-            };
-            return IconCache[cacheKey] = Draw(cacheKey, BugRows, palette);
-        }
-
-        public static Sprite Food(FoodType food)
-        {
-            string cacheKey = "food_" + food;
-            if (IconCache.TryGetValue(cacheKey, out Sprite cached) && cached != null) return cached;
-
-            var palette = new Dictionary<char, Color>
-            {
-                { 'K', new Color(0.08f, 0.06f, 0.06f) },
-                { 'W', Color.white },
-                { 'S', new Color(0.78f, 0.8f, 0.82f) },
-                { 'G', new Color(0.3f, 0.85f, 0.2f) },
-                { 'L', new Color(0.7f, 1f, 0.5f) },
-                { 'Y', new Color(1f, 0.9f, 0.2f) },
-                { 'R', new Color(0.95f, 0.25f, 0.2f) },
-                { 'P', new Color(1f, 0.6f, 0.75f) },
-                { 'C', new Color(0.72f, 0.48f, 0.25f) },
-            };
-
-            string[] rows;
-            switch (food)
-            {
-                case FoodType.NuclearSoda: rows = SodaRows; break;
-                case FoodType.ExplosiveCandy: rows = CandyRows; break;
-                default:
-                    rows = CookieRows;
-                    palette['P'] = new Color(0.55f, 0.2f, 0.75f); // lanetli mor parçacıklar
-                    break;
-            }
-            return IconCache[cacheKey] = Draw(cacheKey, rows, palette);
-        }
-
-        /// <summary>Satır dizisini (üstten alta) noktalı dokuya çevirir; '.' saydamdır.</summary>
-        private static Sprite Draw(string name, string[] rows, Dictionary<char, Color> palette)
-        {
-            const int size = 16;
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                name = name,
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp,
-            };
-
-            var pixels = new Color[size * size];
-            for (int y = 0; y < size; y++)
-            {
-                string row = y < rows.Length ? rows[y] : string.Empty;
-                for (int x = 0; x < size; x++)
-                {
-                    char c = x < row.Length ? row[x] : '.';
-                    // Doku satırları alttan başlar; çizim üstten olduğu için ters çevrilir.
-                    pixels[(size - 1 - y) * size + x] = palette.TryGetValue(c, out Color color) ? color : Color.clear;
-                }
-            }
-
-            texture.SetPixels(pixels);
-            texture.Apply();
-            return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
-        }
+        if (key.isFood || key.bug.icon == null || key.state != BugState.Horror) return Color.white;
+        return Color.Lerp(Color.white, _horrorTint, 0.65f);
     }
-
     #endregion
 }

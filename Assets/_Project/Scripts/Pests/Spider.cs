@@ -106,6 +106,7 @@ public class Spider : MonoBehaviour, IDamageable
 
     private void Awake()
     {
+        KinematicBody.Ensure(gameObject); // sürekli hareket eden collider (FPS)
         health = maxHealth;
         baseScale = transform.localScale;
         if (legs != null)

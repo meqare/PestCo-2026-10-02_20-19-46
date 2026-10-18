@@ -24,6 +24,9 @@ public class JuicyBar : MonoBehaviour
     private float target;
     private float delayTimer;
 
+    // Çubuğun gösterdiği son değer (0-1).
+    public float Value => target;
+
     // Başlangıç doluluğunu ayarlar ve Image ayarını kontrol eder.
     private void Awake()
     {

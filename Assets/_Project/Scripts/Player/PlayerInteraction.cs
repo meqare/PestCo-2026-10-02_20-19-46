@@ -1,5 +1,7 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class PlayerInteraction : MonoBehaviour
 {
@@ -21,7 +23,15 @@ public class PlayerInteraction : MonoBehaviour
     public string CurrentPrompt => CurrentTarget != null ? CurrentTarget.GetPrompt() : string.Empty;
 
     private float nextCheckTime;
-    private GUIStyle promptStyle;
+    private GrabController grab;
+
+    // Nişan noktası ve etkileşim yazısı Canvas üzerinde bir kez kurulur (FPS: eski OnGUI her karede
+    // metni yeniden ölçüp editörde ~10 ms takılma yapıyordu). Sadece hedef/metin değişince güncellenir.
+    private RectTransform crosshair;
+    private Image crosshairImage;
+    private TMP_Text promptText;
+    private bool shownHighlighted;
+    private string shownPrompt;
 
     private void Reset()
     {
@@ -34,23 +44,36 @@ public class PlayerInteraction : MonoBehaviour
             cameraTransform = Camera.main.transform;
         if (interactableMask == 0)
             interactableMask = LayerMask.GetMask("Interactable");
+        grab = GetComponent<GrabController>();
+    }
+
+    private void Start()
+    {
+        BuildHud();
+        RefreshHud(true);
     }
 
     private void Update()
     {
+        bool changed = false;
         if (Time.time >= nextCheckTime)
         {
             nextCheckTime = Time.time + checkInterval;
             CurrentTarget = FindTarget();
+            changed = true;
         }
 
         var keyboard = Keyboard.current;
-        if (keyboard != null && keyboard.eKey.wasPressedThisFrame)
+        // Eşya tutulurken E bırakma tuşudur (GrabController); başka etkileşim tetiklenmesin.
+        if (keyboard != null && keyboard.eKey.wasPressedThisFrame && (grab == null || !grab.ConsumesInteract))
         {
             // Fresh check on press so a stale target from the last interval is never used.
             CurrentTarget = FindTarget();
             CurrentTarget?.Interact(this);
+            changed = true;
         }
+
+        if (changed) RefreshHud(false);
     }
 
     private IInteractable FindTarget()
@@ -63,28 +86,57 @@ public class PlayerInteraction : MonoBehaviour
         return null;
     }
 
-    private void OnGUI()
+    // Ekranın ortasına nişan noktası ve altına etkileşim yazısı kurar (sahnedeki Canvas'a).
+    private void BuildHud()
     {
+        var canvas = FindFirstObjectByType<Canvas>();
+        if (canvas == null) return;
+
+        var root = new GameObject("InteractionHud", typeof(RectTransform));
+        var rootRect = (RectTransform)root.transform;
+        rootRect.SetParent(canvas.transform, false);
+        rootRect.anchorMin = rootRect.anchorMax = new Vector2(0.5f, 0.5f);
+        rootRect.sizeDelta = Vector2.zero;
+
+        var dot = new GameObject("Crosshair", typeof(RectTransform), typeof(Image));
+        crosshair = (RectTransform)dot.transform;
+        crosshair.SetParent(rootRect, false);
+        crosshairImage = dot.GetComponent<Image>();
+        crosshairImage.raycastTarget = false;
+
+        var label = new GameObject("Prompt", typeof(RectTransform), typeof(TextMeshProUGUI));
+        var labelRect = (RectTransform)label.transform;
+        labelRect.SetParent(rootRect, false);
+        labelRect.pivot = new Vector2(0.5f, 1f);
+        labelRect.sizeDelta = new Vector2(400f, 30f);
+        labelRect.anchoredPosition = new Vector2(0f, -20f);
+        promptText = label.GetComponent<TextMeshProUGUI>();
+        promptText.fontSize = 18f;
+        promptText.alignment = TextAlignmentOptions.Top;
+        promptText.color = Color.white;
+        promptText.raycastTarget = false;
+        promptText.textWrappingMode = TextWrappingModes.NoWrap;
+    }
+
+    // Nişan boyut/rengini ve yazıyı yalnızca değiştiklerinde yazar.
+    private void RefreshHud(bool force)
+    {
+        if (crosshairImage == null || promptText == null) return;
+
         bool highlighted = CurrentTarget != null;
-        float size = highlighted ? dotSizeHighlighted : dotSize;
-        var center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-
-        var previousColor = GUI.color;
-        GUI.color = highlighted ? dotColorHighlighted : dotColor;
-        GUI.DrawTexture(new Rect(center.x - size * 0.5f, center.y - size * 0.5f, size, size), Texture2D.whiteTexture);
-        GUI.color = previousColor;
-
-        if (!highlighted) return;
-
-        if (promptStyle == null)
+        if (force || highlighted != shownHighlighted)
         {
-            promptStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.UpperCenter,
-                fontSize = 18
-            };
-            promptStyle.normal.textColor = Color.white;
+            shownHighlighted = highlighted;
+            float size = highlighted ? dotSizeHighlighted : dotSize;
+            crosshair.sizeDelta = new Vector2(size, size);
+            crosshairImage.color = highlighted ? dotColorHighlighted : dotColor;
         }
-        GUI.Label(new Rect(center.x - 200f, center.y + 20f, 400f, 30f), CurrentPrompt, promptStyle);
+
+        string prompt = CurrentPrompt;
+        if (force || prompt != shownPrompt)
+        {
+            shownPrompt = prompt;
+            promptText.text = prompt;
+        }
     }
 }

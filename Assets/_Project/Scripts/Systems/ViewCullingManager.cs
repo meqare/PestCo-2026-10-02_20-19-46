@@ -20,6 +20,8 @@ public class ViewCullingManager : MonoBehaviour
     [Tooltip("Boş bırakılırsa Camera.main kullanılır.")]
     [SerializeField] private Camera viewCamera;
     [SerializeField] private bool forceOcclusionCulling = true;
+    [Tooltip("Eski OnMouseDown/OnMouseOver olayları için kameraların her karede attığı ışını kapatır (projede kullanılmıyor).")]
+    [SerializeField] private bool disableLegacyMouseEvents = true;
 
     [Header("İç mekan tespiti")]
     [Tooltip("Boş bırakılırsa sahnedeki OcclusionArea kullanılır.")]
@@ -49,6 +51,10 @@ public class ViewCullingManager : MonoBehaviour
             targetDistance = outdoorShadowDistance;
         }
         if (indoorArea == null) indoorArea = FindFirstObjectByType<OcclusionArea>();
+
+        // eventMask 0: SendMouseEvents her karede bu kameralardan fizik ışını atmaz (UI etkilenmez, o GraphicRaycaster kullanır).
+        if (disableLegacyMouseEvents)
+            foreach (var cam in Camera.allCameras) cam.eventMask = 0;
     }
 
     // Çıkarken asset'i eski değerine döndür (editörde asset kalıcı değişmesin).

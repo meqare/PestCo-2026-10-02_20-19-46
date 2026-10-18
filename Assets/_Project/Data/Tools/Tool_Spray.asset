@@ -15,7 +15,7 @@ MonoBehaviour:
   toolId: spray
   toolName: Sprey
   description: "Standart sprey. Temel ha\u015Fere \xF6ld\xFCrme arac\u0131."
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 67e18964ccbe03549849b165551c9ef0, type: 3}
   price: 0
   unlockLevel: 1
   isOwnedByDefault: 1

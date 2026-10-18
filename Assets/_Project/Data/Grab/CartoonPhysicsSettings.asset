@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eecdf6b4a33ed2a42aea25399e427354, type: 3}
+  m_Name: CartoonPhysicsSettings
+  m_EditorClassIdentifier: Assembly-CSharp::CartoonPhysicsSettings
+  jellyStiffness: 220
+  jellyDamping: 11
+  stretchPerSpeed: 0.02
+  maxStretch: 0.3
+  maxSquash: 0.25
+  impactSquashPerSpeed: 8
+  boingEnabled: 1
+  boingMinSpeed: 2.5
+  boingGain: 0.3
+  maxBoings: 2
+  maxBounceSpeed: 5
+  boingCooldown: 0.08
+  hangEnabled: 0
+  hangTime: 0.5
+  hangApexSpeed: 0.6
+  hangMinAirTime: 0.15
+  slamInitialSpeed: 6
+  slamGravityMultiplier: 1
+  slamShake: 0.05
+  splatBounceSpeed: 2.5
+  chargedThrow: 1
+  chargeTime: 0.9
+  chargeBackDistance: 0.9
+  maxChargeMultiplier: 1.6
+  chargeSquash: 0.15
+  chargeQuiver: 0.02

@@ -59,6 +59,13 @@ public class PestMovement : MonoBehaviour
 
     [Header("Duvar Tırmanma (prototip)")]
     [SerializeField] private bool allowClimbing = true;
+    [Tooltip("Tuşa basınca duvara tutunur, W/A/S/D ile duvarda yürür; duvardayken tekrar basınca bırakır.")]
+    [SerializeField] private Key climbKey = Key.E;
+    [Tooltip("Duvarda bu tuşa basınca da duvardan bırakır (düşer). Space ise duvardan zıplatır.")]
+    [SerializeField] private Key letGoKey = Key.C;
+    [Tooltip("Tırmanırken gövdenin duvara yaslanması için öne eğilme açısı (derece, 90 = tam dik).")]
+    [SerializeField, Range(0f, 90f)] private float climbPitch = 85f;
+    [SerializeField] private float climbPitchSpeed = 10f;
     [Tooltip("Hangi katmanlar tırmanılabilir (dolap, tezgah, duvar).")]
     [SerializeField] private LayerMask climbableLayers = ~0;
     [SerializeField] private float climbSpeed = 0.5f;
@@ -90,6 +97,8 @@ public class PestMovement : MonoBehaviour
     private bool climbing;
     private Vector3 wallNormal;
     private float climbReleaseTime = -10f;
+    private float currentPitch;
+    private Quaternion baseVisualRot = Quaternion.identity;
 
     // Görsel efektler (PestCartoonFX) için salt-okunur bilgi ve olaylar; oynanışı etkilemez.
     public event System.Action Jumped;
@@ -98,6 +107,8 @@ public class PestMovement : MonoBehaviour
     public float PlanarSpeed => planarVelocity.magnitude;
 
     public bool IsClimbing => climbing;
+    // Duvarda hareket girdisi (0-1): animasyon ayaklarını sadece hareket ederken oynatır.
+    public float ClimbMoveAmount { get; private set; }
     public bool IsGrounded => controller != null && controller.isGrounded;
 
     private void Awake()
@@ -106,6 +117,7 @@ public class PestMovement : MonoBehaviour
         if (visual == null) visual = transform;
         baseVisualScale = visual.localScale;
         baseVisualPos = visual.localPosition;
+        baseVisualRot = visual.localRotation;
         CacheEyes();
         if (cameraTransform == null && Camera.main != null) cameraTransform = Camera.main.transform;
     }
@@ -115,8 +127,11 @@ public class PestMovement : MonoBehaviour
         if (visual != null)
         {
             visual.localScale = baseVisualScale;
-            if (visual != transform) visual.localPosition = baseVisualPos;
+            if (visual != transform) { visual.localPosition = baseVisualPos; visual.localRotation = baseVisualRot; }
         }
+        climbing = false;
+        if (controller != null) controller.enabled = true;
+        currentPitch = 0f;
         if (eyesCached)
         {
             if (solGoz != null) solGoz.localPosition = solGozBase;
@@ -154,17 +169,22 @@ public class PestMovement : MonoBehaviour
         bool jumpPressed = acceptInput && kb.spaceKey.wasPressedThisFrame;
         if (jumpPressed) lastJumpPressedTime = Time.time;
 
+        bool climbPressed = acceptInput && kb[climbKey].wasPressedThisFrame;
+        bool letGo = acceptInput && kb[letGoKey].wasPressedThisFrame;
+
         if (climbing)
         {
             hangTimer = 0f;
             wasGrounded = false;
-            UpdateClimb(input, jumpPressed);
+            UpdateClimb(input, jumpPressed, climbPressed, letGo);
         }
         else
         {
+            ClimbMoveAmount = 0f;
             UpdateGround(input, run);
-            TryStartClimb(input);
+            TryStartClimb(climbPressed);
         }
+        UpdateClimbPose();
 
         bool sprinting = run && input.sqrMagnitude > 0.01f && !climbing;
         IsSprinting = sprinting;
@@ -240,33 +260,41 @@ public class PestMovement : MonoBehaviour
     }
 
     // Havadayken veya yerdeyken duvara doğru ilerleniyorsa yapış.
-    private void TryStartClimb(Vector2 input)
+    private void TryStartClimb(bool climbPressed)
     {
-        if (!allowClimbing || Time.time - climbReleaseTime < 0.3f) return;
-        if (input.sqrMagnitude < 0.01f || planarVelocity.sqrMagnitude < 0.5f) return;
+        if (!allowClimbing || !climbPressed || Time.time - climbReleaseTime < 0.3f) return;
 
-        Vector3 dir = planarVelocity.normalized;
+        // E'ye basınca baktığı yönde duvar varsa tutunur (yürümek şart değil).
+        Vector3 dir = planarVelocity.sqrMagnitude > 0.01f ? planarVelocity.normalized : transform.forward;
         if (FindWall(dir, out RaycastHit hit))
         {
             climbing = true;
             wallNormal = hit.normal;
             verticalVelocity = 0f;
             planarVelocity = Vector3.zero;
+            // Tırmanırken CharacterController kapatılır; bug yüzeyi elle takip eder (çıkıntılara takılmaz).
+            controller.enabled = false;
+            SnapToSurface(hit.point, hit.normal);
         }
     }
 
-    // Duvarda: W/S yukarı-aşağı, A/D yanlara. Space ile duvardan zıpla.
-    private void UpdateClimb(Vector2 input, bool jumpPressed)
+    // CharacterController merkezini yüzeyin hemen önüne oturtur.
+    private void SnapToSurface(Vector3 point, Vector3 normal)
     {
-        // Mevcut duvarı yeniden bul (köşelerde normal değişebilir)
-        if (!FindWall(-wallNormal, out RaycastHit hit))
+        Vector3 center = point + normal * (controller.radius + 0.004f);
+        transform.position = center - controller.center;
+    }
+
+    // Duvarda: W/S yukarı-aşağı, A/D yanlara. Space ile duvardan zıpla.
+    // Hareket yüzey takibiyle yapılır: her karede hedef noktanın önünden yüzeye ışın atılır, bug çıkıntıların üstünden geçer.
+    private void UpdateClimb(Vector2 input, bool jumpPressed, bool climbPressed, bool letGo)
+    {
+        if (letGo || climbPressed)
         {
-            // Duvarın tepesine ulaştık: yukarı basıyorsak üstüne tırman, yoksa bırak.
-            if (input.y > 0.1f) StartCoroutine(MantleRoutine());
-            else StopClimb();
+            StopClimb();
             return;
         }
-        wallNormal = hit.normal;
+        ClimbMoveAmount = input.magnitude;
 
         // Duvara dön
         Quaternion face = Quaternion.LookRotation(-wallNormal, Vector3.up);
@@ -275,25 +303,84 @@ public class PestMovement : MonoBehaviour
         if (jumpPressed)
         {
             Vector3 push = wallNormal * wallJumpPush;
+            StopClimb();
             planarVelocity = new Vector3(push.x, 0f, push.z);
             verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity) * 0.8f;
+            return;
+        }
+
+        Vector3 center = transform.position + controller.center;
+        Vector3 wallRight = Vector3.Cross(Vector3.up, wallNormal).normalized;
+        Vector3 wallUp = Vector3.ProjectOnPlane(Vector3.up, wallNormal).normalized;
+        Vector3 moveDir = wallUp * input.y + wallRight * -input.x;
+        float step = climbSpeed * Time.deltaTime;
+        bool moving = moveDir.sqrMagnitude > 0.0001f;
+        if (moving) moveDir.Normalize();
+        Vector3 desired = center + moveDir * step;
+
+        // Aşağı inerken yere yaklaştıysa bırak
+        if (input.y < -0.1f && Physics.Raycast(desired, Vector3.down, controller.height * 0.5f + 0.02f, climbableLayers, QueryTriggerInteraction.Ignore))
+        {
             StopClimb();
             return;
         }
 
-        Vector3 wallRight = Vector3.Cross(Vector3.up, wallNormal).normalized;
-        Vector3 move = (Vector3.up * input.y + wallRight * -input.x) * climbSpeed;
-        move += -wallNormal * wallStickForce; // duvara bastır
-        CollisionFlags flags = controller.Move(move * Time.deltaTime);
+        // 1) İçbükey köşe: hareket yönünde başka bir duvar varsa ona geç.
+        if (moving && SurfaceCast(center, moveDir, controller.radius + step + 0.01f, out RaycastHit ahead)
+            && Vector3.Dot(ahead.normal, wallNormal) < 0.7f)
+        {
+            wallNormal = ahead.normal;
+            SnapToSurface(ahead.point, ahead.normal);
+            return;
+        }
 
-        // Aşağı inerken yere değdiyse bırak
-        if (input.y < -0.1f && (flags & CollisionFlags.Below) != 0) StopClimb();
+        // 2) Normal durum: hedefin biraz önünden yüzeye ışın at.
+        const float probeBack = 0.08f;
+        Vector3 origin = desired + wallNormal * probeBack;
+        if (SurfaceCast(origin, -wallNormal, probeBack * 2f, out RaycastHit hit))
+        {
+            // Yuvarlak kulp/çıkıntılarda normal hızla değişir; titremesin diye yumuşat.
+            Vector3 n = Vector3.Slerp(wallNormal, hit.normal, 1f - Mathf.Exp(-20f * Time.deltaTime)).normalized;
+            wallNormal = n;
+            SnapToSurface(hit.point, n);
+            return;
+        }
+
+        // 3) Dışbükey köşe (yan kenar): yüzeyin arkasından geri ışın atıp kenarın yan yüzüne sar.
+        if (Mathf.Abs(input.x) > 0.1f)
+        {
+            Vector3 side = wallRight * -Mathf.Sign(input.x);
+            Vector3 behind = desired - wallNormal * (controller.radius + 0.03f);
+            if (SurfaceCast(behind, -side, step + 0.03f, out RaycastHit wrap) && Vector3.Dot(wrap.normal, side) > 0.3f)
+            {
+                wallNormal = wrap.normal;
+                SnapToSurface(wrap.point, wrap.normal);
+                return;
+            }
+        }
+
+        // 4) Duvarın tepesi: yukarı basıyorsak üstüne çık. Başka durumda olduğu yerde kalır.
+        if (input.y > 0.1f) StartCoroutine(MantleRoutine());
+    }
+
+    private bool SurfaceCast(Vector3 origin, Vector3 dir, float dist, out RaycastHit hit)
+    {
+        var hits = Physics.SphereCastAll(origin, 0.01f, dir, dist, climbableLayers, QueryTriggerInteraction.Ignore);
+        float best = float.MaxValue; hit = default;
+        foreach (var h in hits)
+        {
+            if (h.collider.transform.IsChildOf(transform) || h.distance <= 0f) continue;
+            if (Mathf.Abs(h.normal.y) > 0.8f) continue;   // yatay yüzeyler duvar sayılmaz
+            if (h.distance < best) { best = h.distance; hit = h; }
+        }
+        return best < float.MaxValue;
     }
 
     private System.Collections.IEnumerator MantleRoutine()
     {
         // Kısa bir ileri-yukarı hareketle tezgah/dolap üstüne çık.
         climbing = false;
+        controller.enabled = true;
         float t = 0f;
         Vector3 forward = -wallNormal;
         while (t < mantleTime)
@@ -306,9 +393,21 @@ public class PestMovement : MonoBehaviour
         climbReleaseTime = Time.time;
     }
 
+    // Tırmanırken gövdeyi yukarı doğru yatırır (karın duvara dönük), bırakınca yavaşça düzeltir.
+    private void UpdateClimbPose()
+    {
+        if (visual == null || visual == transform) return;
+        float target = climbing ? climbPitch : 0f;
+        currentPitch = Mathf.Lerp(currentPitch, target, 1f - Mathf.Exp(-climbPitchSpeed * Time.deltaTime));
+        if (Mathf.Abs(currentPitch) < 0.01f && target == 0f) currentPitch = 0f;
+        visual.localRotation = baseVisualRot * Quaternion.Euler(-currentPitch, 0f, 0f);
+    }
+
     private void StopClimb()
     {
         climbing = false;
+        if (controller != null) controller.enabled = true;
+        ClimbMoveAmount = 0f;
         climbReleaseTime = Time.time;
     }
 

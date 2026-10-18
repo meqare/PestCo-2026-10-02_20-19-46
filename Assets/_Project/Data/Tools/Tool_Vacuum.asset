@@ -15,7 +15,7 @@ MonoBehaviour:
   toolId: vacuum
   toolName: Vakum
   description: "K\xFC\xE7\xFCk ha\u015Fereleri i\xE7ine \xE7eker. 5 kapasite."
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 18d46941f010e7f4daf0d0c97554b28f, type: 3}
   price: 0
   unlockLevel: 1
   isOwnedByDefault: 1

@@ -24,6 +24,8 @@ public class VacuumTool : MonoBehaviour
     [SerializeField, Min(0f)] private float pullSpeed = 4f;
     [Tooltip("Oyuncuya yatayda bu kadar yaklaşan böcek yutulur.")]
     [SerializeField, Min(0.1f)] private float suckDistance = 1f;
+    [Tooltip("BugController böceklerinin çekilme hızı (çıldırınca kendi hızları 5 m/s).")]
+    [SerializeField, Min(0f)] private float bugPullSpeed = 7f;
     [Tooltip("Hedef taraması bu aralıkla yapılır (çekme her karede uygulanır).")]
     [SerializeField, Min(0.01f)] private float scanInterval = 0.05f;
     [SerializeField, Min(1)] private int maxTargets = 16;
@@ -39,6 +41,13 @@ public class VacuumTool : MonoBehaviour
     [Tooltip("Çekmeyi engelleyen duvar vb. Böcek layer'larını buraya EKLEME.")]
     [SerializeField] private LayerMask obstacleLayers = 1; // Default
     [SerializeField, Min(8)] private int colliderBufferSize = 64;
+
+    [Header("Balon (BalloonPhysicsItem)")]
+    [Tooltip("Eşyanın bağlanacağı silah ucu. Boşsa VacuumFX, o da yoksa kamera kullanılır.")]
+    [SerializeField] private Transform firePoint;
+    [SerializeField, Min(0.5f)] private float balloonRange = 6f;
+    [SerializeField, Min(0.05f)] private float balloonAimRadius = 0.35f;
+    [SerializeField] private LayerMask balloonLayers = ~0;
 
     [Header("Ses")]
     [Tooltip("Çekerken döngüde çalar. Boşsa ses yok.")]
@@ -59,8 +68,16 @@ public class VacuumTool : MonoBehaviour
     private Collider[] hitBuffer;
     private Pest[] targets;
     private int targetCount;
+    private BugController[] bugTargets;
+    private int bugTargetCount;
     private float scanTimer;
     private float nextDebugLogTime;
+
+    // Balon: silah ucundaki kinematik çapa ve şu an bağlı eşya.
+    private Rigidbody balloonAnchor;
+    private BalloonPhysicsItem heldBalloon;
+    private CharacterController playerController;
+    private RaycastHit[] balloonHits;
 
     // Referansları bulur, dizileri ve sesi bir kere hazırlar (Update'te hiç new yok).
     private void Awake()
@@ -71,6 +88,9 @@ public class VacuumTool : MonoBehaviour
 
         hitBuffer = new Collider[colliderBufferSize];
         targets = new Pest[maxTargets];
+        bugTargets = new BugController[maxTargets];
+        balloonHits = new RaycastHit[16];
+        playerController = GetComponentInParent<CharacterController>();
 
         loopSource = GetComponent<AudioSource>();
         loopSource.playOnAwake = false;
@@ -83,6 +103,7 @@ public class VacuumTool : MonoBehaviour
     {
         SetRunning(false);
         ClearTargets();
+        ReleaseBalloon();
     }
 
     // Girişi okur: boşaltma, çalıştırma; çalışırken tarar ve çeker.
@@ -95,6 +116,7 @@ public class VacuumTool : MonoBehaviour
         var mouse = Mouse.current;
         bool running = mouse != null && mouse.rightButton.isPressed && !IsFull;
         SetRunning(running);
+        UpdateBalloon(running);
 
         // GEÇİCİ: canlı test logları.
         if (debugLogs && mouse != null && mouse.rightButton.wasPressedThisFrame)
@@ -123,6 +145,61 @@ public class VacuumTool : MonoBehaviour
         PullTargets(Time.deltaTime);
     }
 
+    // Vakum çalışırken nişandaki BalloonPhysicsItem'ı silah ucuna bağlar; bırakılınca / eşya yok olunca serbest bırakır.
+    private void UpdateBalloon(bool running)
+    {
+        if (!running)
+        {
+            ReleaseBalloon();
+            return;
+        }
+        if (heldBalloon != null || !IsAimingAtBalloon(out BalloonPhysicsItem item)) return;
+
+        EnsureBalloonAnchor();
+        if (balloonAnchor != null && item.TryAttach(balloonAnchor, playerController))
+            heldBalloon = item;
+    }
+
+    private void ReleaseBalloon()
+    {
+        if (heldBalloon != null) heldBalloon.Release();
+        heldBalloon = null;
+    }
+
+    // Kameradan ileri küre taraması: en yakın engel bir balon eşyasıysa o hedeftir (duvar arkasındakini almaz).
+    private bool IsAimingAtBalloon(out BalloonPhysicsItem item)
+    {
+        item = null;
+        int count = Physics.SphereCastNonAlloc(camTransform.position, balloonAimRadius, camTransform.forward,
+            balloonHits, balloonRange, balloonLayers, QueryTriggerInteraction.Ignore);
+
+        float nearest = float.MaxValue;
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit hit = balloonHits[i];
+            if (hit.distance <= 0f && hit.point == Vector3.zero) continue; // başlangıçta içinde kalınan collider
+            if (playerController != null && hit.collider.transform.IsChildOf(playerController.transform)) continue;
+            if (hit.distance >= nearest) continue;
+
+            nearest = hit.distance;
+            item = hit.collider.GetComponentInParent<BalloonPhysicsItem>();
+        }
+        return item != null;
+    }
+
+    // Silah ucuna yapışık kinematik Rigidbody: ConfigurableJoint buna bağlanır.
+    private void EnsureBalloonAnchor()
+    {
+        if (balloonAnchor != null) return;
+
+        Transform parent = firePoint != null ? firePoint : (vacuumFX != null ? vacuumFX.transform : camTransform);
+        var go = new GameObject("BalloonAnchor", typeof(Rigidbody));
+        go.transform.SetParent(parent, false);
+        balloonAnchor = go.GetComponent<Rigidbody>();
+        balloonAnchor.isKinematic = true;
+        balloonAnchor.useGravity = false;
+    }
+
     // Kapsül (kameradan zemine) -> yatay açı -> engel sırasıyla eler; geçen canlı böcekleri hedef listesine yazar.
     // Açı yatayda ölçülür: kamera 1.6 m yukarıda, böcek yerde; 3D açıyla yaklaşan böcek bakışın altına düşüp kaçardı.
     private void ScanTargets()
@@ -137,7 +214,7 @@ public class VacuumTool : MonoBehaviour
 
         int count = Physics.OverlapCapsuleNonAlloc(origin, origin + Vector3.down * scanDepth, range,
             hitBuffer, targetLayers, QueryTriggerInteraction.Collide);
-        for (int i = 0; i < count && targetCount < targets.Length; i++)
+        for (int i = 0; i < count && (targetCount < targets.Length || bugTargetCount < bugTargets.Length); i++)
         {
             Collider col = hitBuffer[i];
             Vector3 targetPos = col.bounds.center;
@@ -147,6 +224,14 @@ public class VacuumTool : MonoBehaviour
             if (flatTo.sqrMagnitude > range * range) continue;
             if (checkAngle && flatTo.sqrMagnitude > 0.0001f && Vector3.Angle(flatForward, flatTo) > halfAngle) continue;
             if (Physics.Linecast(origin, targetPos, obstacleLayers, QueryTriggerInteraction.Ignore)) continue;
+
+            if (col.TryGetComponent(out BugController bug))
+            {
+                if (bugTargetCount < bugTargets.Length) bugTargets[bugTargetCount++] = bug;
+                continue;
+            }
+
+            if (targetCount >= targets.Length) continue;
             if (!col.TryGetComponent(out Pest pest) || !pest.IsAlive) continue;
 
             targets[targetCount++] = pest;
@@ -168,7 +253,11 @@ public class VacuumTool : MonoBehaviour
             toPlayer.y = 0f;
             float dist = toPlayer.magnitude;
 
-            if (dist <= suckDistance)
+            // Vakum tuttuğu sürece böceğin canı azalır; sağlamken çekim zayıf, yutulamaz.
+            pest.DrainByVacuum(dt);
+            bool weak = pest.IsWeakEnoughToSwallow;
+
+            if (dist <= suckDistance && weak)
             {
                 Swallow(pest);
                 targets[i] = null;
@@ -176,23 +265,83 @@ public class VacuumTool : MonoBehaviour
                 continue;
             }
 
-            float step = Mathf.Min(pullSpeed * dt, dist);
-            pest.VacuumPull(toPlayer / dist * step);
+            // Henüz zayıflamadıysa yutma mesafesinde tutulur (debelenir); zayıflayınca tam çekilir.
+            float holdDistance = weak ? 0f : suckDistance;
+            float step = Mathf.Min(pullSpeed * pest.VacuumPullMultiplier * dt, Mathf.Max(0f, dist - holdDistance));
+            pest.VacuumPull(dist > 0.0001f ? toPlayer / dist * step : Vector3.zero);
         }
+
+        PullBugs(dt);
+    }
+
+    // BugController böceklerini çeker: ilk temasta çıldırtır, yaklaşanı yutar.
+    private void PullBugs(float dt)
+    {
+        Vector3 origin = camTransform.position;
+
+        for (int i = 0; i < bugTargetCount; i++)
+        {
+            BugController bug = bugTargets[i];
+            if (bug == null || !bug.gameObject.activeInHierarchy) continue;
+
+            if (bug.currentState != BugState.Horror)
+                bug.TriggerHorrorMode();
+
+            // Pest'lerdeki gibi sadece yatay mesafe; böcek yüksekliğinde kalır.
+            Vector3 toPlayer = origin - bug.transform.position;
+            toPlayer.y = 0f;
+            float dist = toPlayer.magnitude;
+
+            if (dist <= suckDistance)
+            {
+                SwallowBug(bug);
+                bugTargets[i] = null;
+                if (IsFull) return;
+                continue;
+            }
+
+            float step = Mathf.Min(bugPullSpeed * dt, dist);
+            bug.transform.position += toPlayer / dist * step;
+        }
+    }
+
+    // BugController böceğini yutar: hazne artar, sayaç güncellenir, böcek kapanır.
+    private void SwallowBug(BugController bug)
+    {
+        if (IsFull) return;
+        StoredCount++;
+        if (UIManager.Instance != null) UIManager.Instance.AddBugToVakum(bug.bugData, bug.currentState);
+        if (BugInventory.Instance != null) BugInventory.Instance.AddBugToInventory(bug.bugData, bug.currentState);
+        bug.gameObject.SetActive(false);
     }
 
     // Böceği yutar: ölür ve havuza döner, hazne bir artar.
     private void Swallow(Pest pest)
     {
         if (IsFull) return;
+
+        // Türü biliniyorsa envantere (kamyonet satışı, ekrandaki liste) ve vakum yazısına eklenir.
+        BugData data = pest.BugData;
         pest.Vacuumed();
         StoredCount++;
+        if (data == null) return;
+
+        if (UIManager.Instance != null) UIManager.Instance.AddBugToVakum(data, BugState.Cute);
+        if (BugInventory.Instance != null) BugInventory.Instance.AddBugToInventory(data, BugState.Cute);
+    }
+
+    // Haznedeki bir böcek dışarı çıktı (kamyonda kafesten kaçtı): sayaç bir azalır.
+    public void ReleaseOne(BugData data)
+    {
+        if (StoredCount > 0) StoredCount--;
+        if (UIManager.Instance != null) UIManager.Instance.RemoveBugFromVakum(data);
     }
 
     // Hazneyi boşaltır (ileride para/ödül buraya eklenebilir).
     public void Empty()
     {
         StoredCount = 0;
+        if (UIManager.Instance != null) UIManager.Instance.TakeAllBugs();
     }
 
     // Partikülü ve döngü sesini çalışma durumuna göre açar/kapatır (sadece değişince).
@@ -220,6 +369,10 @@ public class VacuumTool : MonoBehaviour
         for (int i = 0; i < targetCount; i++)
             targets[i] = null;
         targetCount = 0;
+
+        for (int i = 0; i < bugTargetCount; i++)
+            bugTargets[i] = null;
+        bugTargetCount = 0;
     }
 
     // Seçiliyken Scene penceresinde menzili ve yutma mesafesini çizer.

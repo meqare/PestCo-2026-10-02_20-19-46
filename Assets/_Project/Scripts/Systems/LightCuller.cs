@@ -49,6 +49,8 @@ public class LightCuller : MonoBehaviour
         foreach (var l in lights)
         {
             if (l == null) continue;
+            // Anahtarla kapatılan ışığı yeniden açma.
+            if (RoomLight.IsSwitchedOff(l)) { if (l.enabled) l.enabled = false; continue; }
             float r = l.range + rangeMargin;
             Vector3 p = l.transform.position;
             bool visible = GeometryUtility.TestPlanesAABB(planes, new Bounds(p, Vector3.one * (r * 2f)));

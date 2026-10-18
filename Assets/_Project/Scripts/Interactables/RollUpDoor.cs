@@ -43,6 +43,7 @@ public class RollUpDoor : MonoBehaviour, IInteractable
         stackY = new float[n];
         for (int i = 0; i < n; i++)
         {
+            KinematicBody.Ensure(slats[i]); // kayan lamel collider'ı statik sayılmasın (FPS)
             closedY[i] = slats[i].localPosition.y;
             // En üst lamel tavana değer, alttakiler altında yığılır.
             stackY[i] = -slatHeight * 0.5f - (n - 1 - i) * stackSpacing;

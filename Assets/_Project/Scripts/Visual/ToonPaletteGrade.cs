@@ -15,6 +15,17 @@ public class ToonPaletteGrade : MonoBehaviour
     [Tooltip("Güneş tonu, lamba katkısı ve sis sıcaklığını azaltır (0 = eski, 1 = nötr/soğuk).")]
     [SerializeField, Range(0f, 1f)] private float yellowCut = 0.5f;
 
+    [Header("Çizgi film görünümü")]
+    [Tooltip("Tüm kontur kalınlıklarını bu oranda inceltir (0 = eski, 0.4 = %40 ince).")]
+    [SerializeField, Range(0f, 0.8f)] private float outlineThinning = 0.4f;
+    [Tooltip("Renk doygunluğu artışı (0 = eski).")]
+    [SerializeField, Range(0f, 1f)] private float saturationBoost = 0.35f;
+    [Tooltip("Fırça izi dokusunu azaltır: 1 = tam düz renk.")]
+    [SerializeField, Range(0f, 1f)] private float flatColors = 0.5f;
+
+    private static readonly int OutlineCutId = Shader.PropertyToID("_PC_OutlineCut");
+    private static readonly int SatId = Shader.PropertyToID("_PC_SatBoost");
+    private static readonly int BrushCutId = Shader.PropertyToID("_PC_BrushCut");
     private static readonly int TintId = Shader.PropertyToID("_PC_ShadowTint");
     private static readonly int TintAmtId = Shader.PropertyToID("_PC_ShadowTintAmt");
     private static readonly int CutId = Shader.PropertyToID("_PC_YellowCut");
@@ -26,6 +37,9 @@ public class ToonPaletteGrade : MonoBehaviour
     {
         Shader.SetGlobalFloat(TintAmtId, 0f);
         Shader.SetGlobalFloat(CutId, 0f);
+        Shader.SetGlobalFloat(OutlineCutId, 0f);
+        Shader.SetGlobalFloat(SatId, 0f);
+        Shader.SetGlobalFloat(BrushCutId, 0f);
     }
 
     private void Push()
@@ -33,5 +47,8 @@ public class ToonPaletteGrade : MonoBehaviour
         Shader.SetGlobalColor(TintId, shadowTint);
         Shader.SetGlobalFloat(TintAmtId, shadowTintAmount);
         Shader.SetGlobalFloat(CutId, yellowCut);
+        Shader.SetGlobalFloat(OutlineCutId, outlineThinning);
+        Shader.SetGlobalFloat(SatId, saturationBoost);
+        Shader.SetGlobalFloat(BrushCutId, flatColors);
     }
 }

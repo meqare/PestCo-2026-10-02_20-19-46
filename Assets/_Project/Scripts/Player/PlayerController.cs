@@ -24,6 +24,7 @@ public class PlayerController : MonoBehaviour
 
     private CharacterController controller;
     private PlayerStatus status;
+    private GrabController grab;
     private float verticalVelocity;
     private float pitch;
     private Vector3 cameraBaseLocalPos;
@@ -33,6 +34,7 @@ public class PlayerController : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
         status = GetComponent<PlayerStatus>();
+        grab = GetComponent<GrabController>();
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
         if (cameraTransform != null)
@@ -105,6 +107,8 @@ public class PlayerController : MonoBehaviour
         float speed = keyboard.leftShiftKey.isPressed ? runSpeed : walkSpeed;
         if (status != null)
             speed *= status.SpeedMultiplier; // örümcek ağı yavaşlatması
+        if (grab != null)
+            speed *= grab.SpeedMultiplier; // taşınan kütle yavaşlatması
         Vector3 move = (transform.right * input.x + transform.forward * input.y) * speed;
 
         if (acceptInput && grounded && keyboard.spaceKey.wasPressedThisFrame)

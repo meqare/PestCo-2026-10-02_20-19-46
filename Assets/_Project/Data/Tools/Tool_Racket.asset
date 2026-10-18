@@ -15,7 +15,7 @@ MonoBehaviour:
   toolId: racket
   toolName: Elektrikli Raket
   description: "U\xE7an ha\u015Ferelere kar\u015F\u0131 etkili. Anl\u0131k \xF6ld\xFCr\xFCr."
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 84749a369380bc54db452f5ea36c3242, type: 3}
   price: 1000
   unlockLevel: 1
   isOwnedByDefault: 0

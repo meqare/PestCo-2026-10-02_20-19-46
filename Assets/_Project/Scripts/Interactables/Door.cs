@@ -63,6 +63,7 @@ public class Door : MonoBehaviour, IInteractable
         EnsureAudioSource();
         if (doorPivot == null)
             doorPivot = transform;
+        KinematicBody.Ensure(doorPivot); // dönen kapı collider'ı statik sayılmasın (FPS)
         // Başlangıç açısı: açık başlıyorsa açık açı, değilse kapalı açı.
         float open = useExplicitAngles ? openedAngle : openAngle;
         float closed = useExplicitAngles ? closedAngle : 0f;

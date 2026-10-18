@@ -148,7 +148,73 @@ public class Pest : MonoBehaviour, IDamageable
     [Header("Performance")]
     [SerializeField, Min(0.05f)] private float thinkInterval = 0.2f;
 
+    [Header("Agent Çevikliği (çizgi film: ani kalkış, keskin dönüş)")]
+    [Tooltip("Hızlanma (m/s²). Yüksek = 'tekerlek yakıp' ani fırlama.")]
+    [SerializeField, Min(1f)] private float agentAcceleration = 45f;
+    [Tooltip("Dönüş hızı (derece/sn). Yüksek = keskin, kaymalı dönüşler.")]
+    [SerializeField, Min(90f)] private float agentAngularSpeed = 900f;
+
+    [Header("Akıllı Kaçış")]
+    [Tooltip("Oyuncunun bu kadar sn sonra olacağı yer tahmin edilir; böcek ona göre kaçar.")]
+    [SerializeField, Min(0f)] private float lookAheadTime = 0.6f;
+    [Tooltip("Oyuncu bu kadar yakında ve üstüne geliyorsa son anda yana atlar (dodge).")]
+    [SerializeField, Min(0.5f)] private float dodgeRadius = 2.2f;
+    [SerializeField, Min(0.2f)] private float dodgeCooldown = 1.1f;
+    [SerializeField, Min(0.5f)] private float dodgeDistance = 1.6f;
+    [Tooltip("Dodge sırasında hedef/zigzag güncellenmez (sn).")]
+    [SerializeField, Min(0.05f)] private float dodgeDuration = 0.35f;
+    [SerializeField, Min(1f)] private float dodgeSpeedMultiplier = 1.5f;
+    [Tooltip("Oyuncunun üstüne geliş hızı (m/s) bunu geçerse dodge tetiklenir.")]
+    [SerializeField, Min(0f)] private float dodgeMinClosingSpeed = 1.2f;
+    [Tooltip("Bir kaçışta dolap/çekmeceye saklanma ihtimali (0-1). Düşük = çoğunlukla sadece kaçar.")]
+    [SerializeField, Range(0f, 1f)] private float cabinetHideChance = 0.3f;
+    [Tooltip("Bir dolaba saklandıktan sonra bu kadar sn tekrar dolaba girmez.")]
+    [SerializeField, Min(0f)] private float cabinetCooldown = 25f;
+    [Tooltip("Saklanmak için önce bu kadar sn koşmuş olmalı (hemen kaybolmasın, önce kaçsın).")]
+    [SerializeField, Min(0f)] private float minFleeTimeBeforeHide = 3.5f;
+    [Tooltip("Saklanmaya ancak oyuncu bu kadar (m) uzaktayken başlar; yakınken koşmaya devam eder.")]
+    [SerializeField, Min(0f)] private float hideSafeDistance = 3.5f;
+
+    [Header("Yakalama / Vakum Direnci (kolay yakalanmasın)")]
+    [Tooltip("Vakumla yakalanınca envantere eklenecek böcek verisi (tür adı, satış değeri).")]
+    [SerializeField] private BugData bugData;
+    [Tooltip("Vakum tutarken saniyede kaybettiği can (öldürmez, zayıflatır).")]
+    [SerializeField, Min(0f)] private float vacuumDrainPerSecond = 16f;
+    [Tooltip("Can bu orana inince yutulabilir (0.3 = %30). Daha sağlamsa vakum yutamaz.")]
+    [SerializeField, Range(0.05f, 0.9f)] private float swallowHealthFraction = 0.3f;
+    [Tooltip("Sapasağlamken vakumun çekme gücü çarpanı (zayıfladıkça 1'e çıkar).")]
+    [SerializeField, Range(0.05f, 1f)] private float healthyPullMultiplier = 0.35f;
+    [Tooltip("Vakumdayken bu aralıkla (sn) kurtulmayı dener.")]
+    [SerializeField, Min(0.2f)] private float struggleInterval = 1.1f;
+    [SerializeField, Range(0f, 1f)] private float breakFreeChance = 0.3f;
+    [Tooltip("Kurtulduktan sonra bu kadar sn vakum çekemez.")]
+    [SerializeField, Min(0f)] private float breakFreeImmunity = 1.6f;
+    [Tooltip("Hasarsız kalınca saniyede kazandığı can.")]
+    [SerializeField, Min(0f)] private float healthRegenPerSecond = 3f;
+    [SerializeField, Min(0f)] private float regenDelay = 2.5f;
+
+    /// <summary>Oyuncuyu fark etti (parametre: şok/hazırlık süresi, sn). Çizgi film tepkileri bunu dinler.</summary>
+    public event System.Action<float> Alerted;
+    /// <summary>Son anda yana atladı (parametre: dünya yönünde sıçrama yönü).</summary>
+    public event System.Action<Vector3> Dodged;
+    /// <summary>Gizlendi (true) ya da ortaya çıktı (false).</summary>
+    public event System.Action<bool> ConcealedChanged;
+
     public bool IsAlive => state != PestState.Dead && currentHealth > 0f;
+
+    /// <summary>Yakalanınca envantere eklenecek böcek verisi (boş olabilir).</summary>
+    public BugData BugData => bugData;
+    public float CurrentHealth => currentHealth;
+    public float MaxHealth => maxHealth;
+    /// <summary>0-1 arası kalan can oranı.</summary>
+    public float HealthFraction => maxHealth > 0f ? Mathf.Clamp01(currentHealth / maxHealth) : 0f;
+    /// <summary>Can değişti (parametre: 0-1 oran). Can barı bunu dinler.</summary>
+    public event System.Action<float> HealthChanged;
+    /// <summary>Yeterince zayıfladı mı, vakum yutabilir mi?</summary>
+    public bool IsWeakEnoughToSwallow => currentHealth <= maxHealth * swallowHealthFraction;
+    /// <summary>Vakumun çekme gücü çarpanı: sağlamken düşük, zayıflayınca 1.</summary>
+    public float VacuumPullMultiplier => Mathf.Lerp(1f, healthyPullMultiplier,
+        Mathf.InverseLerp(swallowHealthFraction, 1f, HealthFraction));
     public string SpeciesName => speciesName;
     public PestSpecies Species => species;
     public UnityEvent OnDeath => onDeath;
@@ -230,6 +296,25 @@ public class Pest : MonoBehaviour, IDamageable
     // Köşede bekleme (CornerFlee).
     private bool isCornerWaiting;
     private float cornerWaitUntil;
+    // Vakum: tutma/kurtulma/can yenilenmesi zamanlayıcıları.
+    private float vacuumGrabUntil;
+    private bool wasGrabbed;
+    private float vacuumImmuneUntil;
+    private float nextStruggleTime;
+    private float lastDamageTime;
+    private float lastRegenTime;
+    // Dolap/çekmece saklanması: ayrılan nokta, animasyon durumu ve çalışan coroutine.
+    private CabinetHideSpot hideSpot;
+    private bool isCabinetBusy;
+    private Coroutine cabinetRoutine;
+    private bool cabinetAllowedThisFlee;
+    private float nextCabinetAllowedTime;
+    // Akıllı kaçış: oyuncunun hızı tahmini ve dodge zamanlayıcıları.
+    private Vector3 lastPlayerPos;
+    private float lastPlayerSampleTime;
+    private Vector3 playerVelocity;
+    private float nextDodgeTime;
+    private float dodgeUntil;
     // Ölüm sesi Juice'a dizi olarak verilir; her ölümde new olmasın diye bir kere kurulur.
     private AudioClip[] deathSoundClips;
 
@@ -247,8 +332,12 @@ public class Pest : MonoBehaviour, IDamageable
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
+        // Çevik kalkış ve keskin dönüş (varsayılan 8 / 120 çok hantal hissettiriyor).
+        agent.acceleration = Mathf.Max(agent.acceleration, agentAcceleration);
+        agent.angularSpeed = Mathf.Max(agent.angularSpeed, agentAngularSpeed);
         navFilter = new NavMeshQueryFilter { agentTypeID = agent.agentTypeID, areaMask = agent.areaMask };
         bodyCollider = GetComponentInChildren<Collider>();
+        KinematicBody.Ensure(gameObject); // her karede hareket eden collider: statik sayılmasın (FPS)
         renderers = GetComponentsInChildren<Renderer>(true);
         SetBaseSpeed(moveSpeed);
         if (mouseDeathSound != null)
@@ -335,6 +424,13 @@ public class Pest : MonoBehaviour, IDamageable
         maxHealth = originalMaxHealth;
         fleeSpeed = originalFleeSpeed;
         currentHealth = maxHealth;
+        vacuumGrabUntil = 0f;
+        wasGrabbed = false;
+        vacuumImmuneUntil = 0f;
+        nextStruggleTime = 0f;
+        lastDamageTime = -100f;
+        lastRegenTime = Time.time;
+        HealthChanged?.Invoke(1f);
         hasFleeTarget = false;
         calmStartTime = -1f;
         hideUntil = 0f;
@@ -350,6 +446,11 @@ public class Pest : MonoBehaviour, IDamageable
         isCornerWaiting = false;
         isFleePaused = false;
         panicHopsLeft = 0;
+        nextDodgeTime = 0f;
+        dodgeUntil = 0f;
+        isCabinetBusy = false;
+        playerVelocity = Vector3.zero;
+        lastPlayerSampleTime = -1f;
         speedNoiseSeed = Random.Range(0f, 100f);
 
         // Ölünce ters dönmüş ve sıkışmış olabilir: sadece Y yönünü koru, ölçeği geri al.
@@ -389,6 +490,9 @@ public class Pest : MonoBehaviour, IDamageable
         StopAllCoroutines();
         thinkRoutine = null;
         deathRoutine = null;
+        cabinetRoutine = null;
+        isCabinetBusy = false;
+        ReleaseHideSpot();
         corpses.Remove(this);
     }
 
@@ -439,6 +543,16 @@ public class Pest : MonoBehaviour, IDamageable
     private void Think()
     {
         UpdateSlow();
+        UpdatePlayerVelocity();
+        UpdateHealthRegen();
+
+        // Vakum tutuyorsa karar vermez; bırakınca agent tekrar yürümeye başlar.
+        if (Time.time < vacuumGrabUntil) return;
+        if (wasGrabbed)
+        {
+            wasGrabbed = false;
+            if (agent.isOnNavMesh && !isConcealed && !isFleePaused) agent.isStopped = false;
+        }
 
         switch (state)
         {
@@ -460,6 +574,41 @@ public class Pest : MonoBehaviour, IDamageable
             case PestState.Dead:
                 break;
         }
+    }
+
+    // Hasar almadan regenDelay sn geçince canı yavaşça yeniler (zayıflatılan böcek toparlanır).
+    private void UpdateHealthRegen()
+    {
+        float dt = Time.time - lastRegenTime;
+        lastRegenTime = Time.time;
+
+        if (!IsAlive || healthRegenPerSecond <= 0f || currentHealth >= maxHealth) return;
+        if (Time.time - lastDamageTime < regenDelay) return;
+
+        currentHealth = Mathf.Min(maxHealth, currentHealth + healthRegenPerSecond * dt);
+        HealthChanged?.Invoke(HealthFraction);
+    }
+
+    // Oyuncunun yatay hızını iki düşünme arasındaki konum farkından tahmin eder (yumuşatılmış).
+    private void UpdatePlayerVelocity()
+    {
+        if (player == null) return;
+
+        Vector3 pos = player.position;
+        pos.y = 0f;
+        if (lastPlayerSampleTime >= 0f)
+        {
+            float dt = Time.time - lastPlayerSampleTime;
+            if (dt > 0.01f)
+            {
+                Vector3 raw = (pos - lastPlayerPos) / dt;
+                // Işınlanma gibi uç sıçramalar yok sayılır (10 m/s üstü).
+                if (raw.magnitude < 10f)
+                    playerVelocity = Vector3.Lerp(playerVelocity, raw, 0.6f);
+            }
+        }
+        lastPlayerPos = pos;
+        lastPlayerSampleTime = Time.time;
     }
 
     // Oyuncuya yatay uzaklığın karesi; oyuncu yoksa sonsuz döner.
@@ -573,7 +722,12 @@ public class Pest : MonoBehaviour, IDamageable
         isWaiting = false;
         hasFleeTarget = false;
         calmStartTime = -1f;
+        dodgeUntil = 0f;
+        nextDodgeTime = Time.time + freezeDuration + 0.4f;
+        // Her kaçışta bir kez zar atılır: çoğu zaman dolaba girmeden sadece kaçar (hep saklanmasın).
+        cabinetAllowedThisFlee = Time.time >= nextCabinetAllowedTime && Random.value < cabinetHideChance;
         ResumeFromPause();
+        Alerted?.Invoke(freezeDuration);
 
         // Panik: önce şok donması, sonra birkaç rastgele sıçrama, ana kaçış hedefi en son seçilir.
         panicHopsLeft = panicHops;
@@ -602,6 +756,9 @@ public class Pest : MonoBehaviour, IDamageable
     {
         if (!agent.isOnNavMesh) return;
 
+        // 0) Son an dodge'u sürerken hedef/zigzag/duraklama karışmaz.
+        if (Time.time < dodgeUntil) return;
+
         // 1) Şok donması ve nefes alır gibi kısa duraklamalar.
         if (UpdateFleePause()) return;
 
@@ -615,7 +772,12 @@ public class Pest : MonoBehaviour, IDamageable
             return;
         }
 
-        if (TryStartHiding()) return;
+        if (TryDodge()) return;
+
+        // Akıllı: önce gerçekten kaçar; ancak yeterince koştuktan ve oyuncudan uzaklaştıktan sonra saklanır.
+        bool safeToHide = Time.time - panicStartTime >= minFleeTimeBeforeHide
+            && PlayerDistanceSqr() >= hideSafeDistance * hideSafeDistance;
+        if (safeToHide && TryStartHiding()) return;
 
         float distSqr = PlayerDistanceSqr();
         UpdateFleeSpeed(distSqr);
@@ -656,6 +818,62 @@ public class Pest : MonoBehaviour, IDamageable
         // 3) Zigzag: ana hedefe giderken yan yön düzenli aralıkla tersine döner.
         if (hasFleeTarget && Time.time >= nextZigzagTime)
             ZigzagStep();
+    }
+
+    // Oyuncu üstüne koşuyorsa son anda yana (oyuncunun hareket yönüne dik) atlar; iki yandan açık olanı seçer.
+    // Çizgi filmlerdeki "tam yakalanacakken sıyrılma" hamlesi. Atlayınca kısa süre hızlanır.
+    private bool TryDodge()
+    {
+        if (player == null || Time.time < nextDodgeTime) return false;
+
+        Vector3 myPos = transform.position;
+        Vector3 fromPlayer = myPos - player.position;
+        fromPlayer.y = 0f;
+        float dist = fromPlayer.magnitude;
+        if (dist > dodgeRadius || dist < 0.05f) return false;
+
+        Vector3 away = fromPlayer / dist;
+        // Oyuncu bize doğru ne kadar hızla geliyor?
+        float closingSpeed = Vector3.Dot(playerVelocity, away);
+        if (closingSpeed < dodgeMinClosingSpeed) return false;
+
+        Vector3 side = Vector3.Cross(Vector3.up, away);
+        Vector3 best = Vector3.zero;
+        float bestReach = 0.4f;
+        bool found = false;
+
+        // İki yan yönü dene (önce rastgele olan); duvara daha az çarpan kazanır.
+        float firstSign = Random.value < 0.5f ? 1f : -1f;
+        for (int i = 0; i < 2; i++)
+        {
+            float sign = i == 0 ? firstSign : -firstSign;
+            Vector3 dir = (side * sign * 0.9f + away * 0.4f).normalized;
+            Vector3 candidate = myPos + dir * dodgeDistance;
+            if (NavMesh.Raycast(myPos, candidate, out NavMeshHit edge, navFilter))
+                candidate = edge.position;
+            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, 0.5f, navFilter)) continue;
+
+            Vector3 move = hit.position - myPos;
+            move.y = 0f;
+            if (move.magnitude <= bestReach) continue;
+            bestReach = move.magnitude;
+            best = hit.position;
+            found = true;
+        }
+        if (!found) return false;
+
+        nextDodgeTime = Time.time + dodgeCooldown;
+        dodgeUntil = Time.time + dodgeDuration;
+        hasFleeTarget = false;
+        ResumeFromPause();
+        SetBaseSpeed(fleeSpeed * dodgeSpeedMultiplier);
+        agent.SetDestination(best);
+        moveStartTime = Time.time;
+
+        Vector3 jump = best - myPos;
+        jump.y = 0f;
+        Dodged?.Invoke(jump.normalized);
+        return true;
     }
 
     // Panik sıçraması: yakında rastgele bir NavMesh noktasına koşar.
@@ -775,7 +993,9 @@ public class Pest : MonoBehaviour, IDamageable
         if (player == null) return;
 
         Vector3 myPos = transform.position;
-        Vector3 away = myPos - player.position;
+        // Oyuncunun şimdiki değil, birazdan olacağı yerden kaçar (tahmin).
+        Vector3 threat = player.position + playerVelocity * lookAheadTime;
+        Vector3 away = myPos - threat;
         away.y = 0f;
         if (away.sqrMagnitude < 0.0001f)
             away = transform.forward;
@@ -838,6 +1058,7 @@ public class Pest : MonoBehaviour, IDamageable
 
         Vector3 myPos = transform.position;
         Transform best = null;
+        CabinetHideSpot bestCabinet = null;
         float bestSqr = hideSearchRadiusSqr;
 
         for (int i = 0; i < hidingSpots.Length; i++)
@@ -845,16 +1066,31 @@ public class Pest : MonoBehaviour, IDamageable
             Transform spot = hidingSpots[i];
             if (spot == null || !spot.gameObject.activeInHierarchy) continue;
 
+            // Dolap/çekmece noktası başka bir haşere tarafından doluysa atlanır.
+            spot.TryGetComponent(out CabinetHideSpot cabinet);
+            if (cabinet != null && (!cabinetAllowedThisFlee || !cabinet.IsAvailableFor(this))) continue;
+
             float sqr = (spot.position - myPos).sqrMagnitude;
+            // Akıllı: oyuncunun daha yakın olduğu (üstüne koşacağı) saklanma yerini seçmez.
+            if (player != null && (spot.position - player.position).sqrMagnitude < sqr) continue;
             if (sqr <= bestSqr)
             {
                 bestSqr = sqr;
                 best = spot;
+                bestCabinet = cabinet;
             }
         }
 
         if (best == null) return false;
         if (!NavMesh.SamplePosition(best.position, out NavMeshHit hit, 1f, navFilter)) return false;
+
+        ReleaseHideSpot();
+        if (bestCabinet != null && bestCabinet.Furniture != null && bestCabinet.TryReserve(this))
+        {
+            hideSpot = bestCabinet;
+            nextCabinetAllowedTime = Time.time + cabinetCooldown;
+            cabinetAllowedThisFlee = false;
+        }
 
         state = PestState.Hide;
         isConcealed = false;
@@ -891,6 +1127,9 @@ public class Pest : MonoBehaviour, IDamageable
     // Saklanma yerine yürür, varınca gizlenir; süre dolunca ortaya çıkar.
     private void UpdateHide()
     {
+        // Dolaba girip çıkma animasyonu sürerken başka karar verilmez.
+        if (isCabinetBusy) return;
+
         // Yuva yıkıldıysa içindeki/yoldaki böcek fırlayıp kaçar.
         if (hidingInNest && (homeNest == null || !homeNest.IsAlive))
         {
@@ -906,6 +1145,13 @@ public class Pest : MonoBehaviour, IDamageable
         {
             if (Time.time >= hideUntil)
             {
+                // Dolabın içindeyse kapağı açıp dışarı sıçrar.
+                if (hideSpot != null)
+                {
+                    cabinetRoutine = StartCoroutine(ExitCabinetRoutine());
+                    return;
+                }
+
                 SetConcealed(false);
                 hidingInNest = false;
                 ReturnToWander();
@@ -921,15 +1167,140 @@ public class Pest : MonoBehaviour, IDamageable
             state = PestState.Flee;
             hasFleeTarget = false;
             hidingInNest = false;
+            ReleaseHideSpot();
             nextHideAllowedTime = Time.time + hideRetryDelay;
             return;
         }
 
         if (HasArrived(hideArriveDistance))
         {
+            // Dolap/çekmece noktasıysa kapağı açıp içine zıplar; değilse eskisi gibi görünmez olur.
+            if (hideSpot != null)
+            {
+                cabinetRoutine = StartCoroutine(EnterCabinetRoutine());
+                return;
+            }
+
             SetConcealed(true);
             hideUntil = Time.time + Random.Range(hideMinTime, Mathf.Max(hideMinTime, hideMaxTime));
         }
+    }
+
+    // Dolaba girer: kapağa döner, kapağı açar, içeri sıçrar, gizlenir ve kapağı kapatır.
+    private IEnumerator EnterCabinetRoutine()
+    {
+        isCabinetBusy = true;
+        CabinetHideSpot spot = hideSpot;
+        IOpenableFurniture furniture = spot.Furniture;
+
+        if (agent.isOnNavMesh)
+        {
+            agent.ResetPath();
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+        }
+
+        FaceTowards(spot.InsidePosition);
+        furniture.Open();
+        yield return new WaitForSeconds(furniture.OpenDuration * 0.8f);
+
+        // Kapağı açık görünce içeri sıçrar; küçülerek kaybolur.
+        agent.enabled = false;
+        yield return HopRoutine(transform.position, spot.InsidePosition, spot.HopHeight, 1f, 0.3f);
+
+        SetConcealed(true);
+        transform.localScale = baseScale;
+        spot.IsInside = true;
+        hideUntil = Time.time + Random.Range(hideMinTime, Mathf.Max(hideMinTime, hideMaxTime));
+
+        yield return new WaitForSeconds(0.2f);
+        furniture.Close();
+        isCabinetBusy = false;
+        cabinetRoutine = null;
+    }
+
+    // Dolaptan çıkar: kapağı açar, dışarı sıçrar, sakin dolaşmaya döner; kapağı bir süre sonra kapatır.
+    private IEnumerator ExitCabinetRoutine()
+    {
+        isCabinetBusy = true;
+        CabinetHideSpot spot = hideSpot;
+        IOpenableFurniture furniture = spot.Furniture;
+
+        furniture.Open();
+        yield return new WaitForSeconds(furniture.OpenDuration * 0.9f);
+
+        Vector3 outPos = spot.transform.position;
+        transform.position = spot.InsidePosition;
+        SetConcealed(false);
+        yield return HopRoutine(spot.InsidePosition, outPos, spot.HopHeight, 0.3f, 0.3f);
+
+        agent.enabled = true;
+        agent.Warp(outPos);
+        ReleaseHideSpot();
+        hidingInNest = false;
+        ReturnToWander();
+        isCabinetBusy = false;
+        cabinetRoutine = null;
+
+        yield return new WaitForSeconds(1f);
+        furniture.Close();
+    }
+
+    // İki nokta arasında yay çizerek sıçrar; ölçek startScale'den (1 = normal) hedefe yumuşakça değişir.
+    private IEnumerator HopRoutine(Vector3 from, Vector3 to, float height, float startScaleMul, float duration)
+    {
+        float endScaleMul = startScaleMul >= 1f ? 0.3f : 1f;
+        for (float t = 0f; t < duration; t += Time.deltaTime)
+        {
+            float k = t / duration;
+            Vector3 pos = Vector3.Lerp(from, to, k) + Vector3.up * (Mathf.Sin(k * Mathf.PI) * height);
+            transform.position = pos;
+            transform.localScale = baseScale * Mathf.Lerp(startScaleMul, endScaleMul, k);
+            yield return null;
+        }
+        transform.position = to;
+        transform.localScale = baseScale * endScaleMul;
+    }
+
+    // Hedef noktaya yatayda döner (dolaba bakarak girsin).
+    private void FaceTowards(Vector3 worldPoint)
+    {
+        Vector3 dir = worldPoint - transform.position;
+        dir.y = 0f;
+        if (dir.sqrMagnitude > 0.0001f)
+            transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+    }
+
+    // Oyuncu saklandığı dolabı açtı: haşere ortaya çıkar ve paniğe kapılıp kaçar.
+    public void ExposeFromHiding()
+    {
+        if (!IsAlive || hideSpot == null || !hideSpot.IsInside) return;
+
+        if (cabinetRoutine != null)
+        {
+            StopCoroutine(cabinetRoutine);
+            cabinetRoutine = null;
+        }
+        isCabinetBusy = false;
+
+        Vector3 outPos = hideSpot.transform.position;
+        agent.enabled = true;
+        agent.Warp(outPos);
+        transform.localScale = baseScale;
+        ReleaseHideSpot();
+        SetConcealed(false);
+        hidingInNest = false;
+        state = PestState.Idle;
+        if (agent.isOnNavMesh) EnterFlee();
+    }
+
+    // Ayırdığı dolap/çekmece noktasını bırakır.
+    private void ReleaseHideSpot()
+    {
+        if (hideSpot == null) return;
+
+        hideSpot.Release(this);
+        hideSpot = null;
     }
 
     // Ayakta olan en yakın yuvayı döner (yuva sayısı az, döngü ucuz).
@@ -1088,7 +1459,9 @@ public class Pest : MonoBehaviour, IDamageable
     // Görünürlüğü, çarpışmayı ve agent hareketini birlikte açar/kapatır.
     private void SetConcealed(bool concealed)
     {
+        bool changed = isConcealed != concealed;
         isConcealed = concealed;
+        if (changed) ConcealedChanged?.Invoke(concealed);
 
         for (int i = 0; i < renderers.Length; i++)
             renderers[i].enabled = !concealed;
@@ -1135,6 +1508,8 @@ public class Pest : MonoBehaviour, IDamageable
         {
             currentHealth -= amount;
         }
+        lastDamageTime = Time.time;
+        HealthChanged?.Invoke(HealthFraction);
 
         // Ölümcül vuruşta itme yok: böcek vurulduğu yerde kasılır.
         if (currentHealth <= 0f)
@@ -1168,6 +1543,7 @@ public class Pest : MonoBehaviour, IDamageable
         state = PestState.Dead;
         currentHealth = 0f;
         TotalKills++;
+        ReleaseHideSpot();
 
         if (thinkRoutine != null)
         {
@@ -1208,8 +1584,47 @@ public class Pest : MonoBehaviour, IDamageable
     public void VacuumPull(Vector3 delta)
     {
         if (!IsAlive || isConcealed || !agent.isOnNavMesh) return;
+        // Kurtulduktan sonra kısa süre vakum tutamaz.
+        if (Time.time < vacuumImmuneUntil) return;
+
+        // Vakum tutarken yürümez (aksi halde kaçış hızı çekimi yener).
+        vacuumGrabUntil = Time.time + 0.25f;
+        wasGrabbed = true;
+        agent.isStopped = true;
         agent.velocity = Vector3.zero;
         agent.Move(delta);
+    }
+
+    // Vakum tuttuğu sürece canı saniyede vacuumDrainPerSecond azaltır (en az 1 can kalır; öldürmez).
+    // Aralıklarla kurtulmayı dener; kurtulursa kaçar ve bir süre vakuma yakalanmaz.
+    public void DrainByVacuum(float dt)
+    {
+        if (!IsAlive || isConcealed || Time.time < vacuumImmuneUntil) return;
+
+        lastDamageTime = Time.time;
+        currentHealth = Mathf.Max(1f, currentHealth - vacuumDrainPerSecond * dt);
+        HealthChanged?.Invoke(HealthFraction);
+
+        if (Time.time >= nextStruggleTime)
+        {
+            nextStruggleTime = Time.time + struggleInterval;
+            if (!IsWeakEnoughToSwallow && Random.value < breakFreeChance)
+                BreakFreeFromVacuum();
+        }
+    }
+
+    // Vakumdan kurtulur: tutulma biter, panikle kaçar, kısa süre dokunulmaz.
+    private void BreakFreeFromVacuum()
+    {
+        vacuumImmuneUntil = Time.time + breakFreeImmunity;
+        vacuumGrabUntil = 0f;
+        wasGrabbed = false;
+        if (agent.isOnNavMesh) agent.isStopped = false;
+
+        if (state == PestState.Flee) PickFleeTarget();
+        else if (agent.isOnNavMesh) EnterFlee();
+        SetBaseSpeed((fleeSpeed + speedVariation) * dodgeSpeedMultiplier);
+        dodgeUntil = Time.time + dodgeDuration;
     }
 
     // Vakuma yutuldu: ceset bırakmadan ölür (öldürme sayılır, yuvası haberdar olur) ve havuza döner.
