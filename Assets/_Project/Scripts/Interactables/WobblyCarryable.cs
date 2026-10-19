@@ -150,7 +150,7 @@ public class WobblyCarryable : MonoBehaviour, IInteractable
 
         var kb = Keyboard.current;
         var mouse = Mouse.current;
-        if (kb != null && dropFrame != Time.frameCount && kb.eKey.wasPressedThisFrame) { Drop(false); return; }
+        if (kb != null && !PestCo.Truck.PestPC.IsOpen && dropFrame != Time.frameCount && kb.eKey.wasPressedThisFrame) { Drop(false); return; }
         if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState == CursorLockMode.Locked)
         {
             Vector3 dir = holder.forward;

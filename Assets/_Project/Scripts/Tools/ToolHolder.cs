@@ -89,7 +89,7 @@ public class ToolHolder : MonoBehaviour
     private void HandleSwitchInput()
     {
         var keyboard = Keyboard.current;
-        if (keyboard == null || !HandleNumberKeys) return;
+        if (keyboard == null || !HandleNumberKeys || PestCo.Truck.PestPC.IsOpen) return;
 
         for (int i = 0; i < tools.Count && i < 9; i++)
         {

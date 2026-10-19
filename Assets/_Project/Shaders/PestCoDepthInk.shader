@@ -34,6 +34,7 @@ Shader "PestCo/DepthInk"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 
             half4 _InkColor;
+            float4 _PC_InkTint;
             float4 _PC_InkZoneCenter, _PC_InkZoneExtents, _PC_InkWobble; // _PC_InkWobble: x genlik (px), y fps, z kursun kalem rengi karisimi, w cizgi kalinligi carpani // InkZone bileseni yazar (w: icerideki carpan / yumusak kenar m)
             float _Threshold, _Width, _FadeStart, _FadeEnd, _ShadeStrength, _ShadeRadius, _FarWidth, _FarWidthEnd, _NoiseGrow;
 
@@ -51,21 +52,27 @@ Shader "PestCo/DepthInk"
                 float pencilZone = 0.0;
                 float zoneW = 0.0;
                 // Elle cizim: cizgi konumu dalgali ve kareden kareye kayar (dusuk fps). Sadece InkZone icinde.
-                if (_PC_InkWobble.x > 0.0 && _PC_InkZoneExtents.x > 0.0)
+                // (Titreme 0 olsa da bolge rengi/kalinligi icin bolge agirligi hesaplanir: _PC_InkTint.a > 0)
+                if ((_PC_InkWobble.x > 0.0 || _PC_InkTint.a > 0.0) && _PC_InkZoneExtents.x > 0.0)
                 {
                     float3 wp0 = ComputeWorldSpacePosition(uv, d0, UNITY_MATRIX_I_VP);
                     float3 q0 = abs(wp0 - _PC_InkZoneCenter.xyz) - _PC_InkZoneExtents.xyz;
                     float zw = 1.0 - smoothstep(0.0, max(_PC_InkZoneExtents.w, 0.01), max(q0.x, max(q0.y, q0.z)));
                     pencilZone = zw * _PC_InkWobble.z;
                     zoneW = zw;
-                    float fr = floor(_Time.y * _PC_InkWobble.y);
-                    float2 spx = uv * _ScreenParams.xy;
-                    float2 wob = float2(sin(spx.y * 0.035 + fr * 1.7) + sin(spx.x * 0.017 + fr * 2.9) * 0.7,
-                                        sin(spx.x * 0.031 + fr * 2.3) + sin(spx.y * 0.021 + fr * 1.1) * 0.7);
-                    // tam piksele yuvarla: kesirli kayma komsu derinlik orneklerini asimetrik yapip halka desenleri uretiyordu
-                    float2 sh = round(wob * (_PC_InkWobble.x * zw));
-                    uv = (floor(spx) + 0.5 + sh) / _ScreenParams.xy;
-                    d0 = SampleSceneDepth(uv);
+                    if (_PC_InkWobble.x > 0.0)
+                    {
+                        float fr = floor(_Time.y * _PC_InkWobble.y);
+                        // derinlik dokusunun gercek piksel boyutu (_ScreenParams render olcegi/hedef doku farkinda tutmaz -> yatay serit)
+                        float2 texSize = _CameraDepthTexture_TexelSize.zw;
+                        float2 spx = uv * texSize;
+                        float2 wob = float2(sin(spx.y * 0.035 + fr * 1.7) + sin(spx.x * 0.017 + fr * 2.9) * 0.7,
+                                            sin(spx.x * 0.031 + fr * 2.3) + sin(spx.y * 0.021 + fr * 1.1) * 0.7);
+                        // tam piksele yuvarla: kesirli kayma komsu derinlik orneklerini asimetrik yapip halka desenleri uretiyordu
+                        float2 sh = round(wob * (_PC_InkWobble.x * zw));
+                        uv = (floor(spx) + 0.5 + sh) / texSize;
+                        d0 = SampleSceneDepth(uv);
+                    }
                 }
 
                 // Uzaklastikca cizgi kalinligini azalt: 6 m'de tam, 20 m'de ~%45. Sabit piksel kalinligi uzakta sismis gorunuyordu.
@@ -112,7 +119,9 @@ Shader "PestCo/DepthInk"
                 float shade = saturate(dot(c, float4(0.6, 0.6, 0.6, 0.6))) * _ShadeStrength * fade * lerp(1.0, zoneMul, 0.5);
 
                 float a = saturate(ink + shade * (1.0 - ink));
-                half3 inkCol = lerp(_InkColor.rgb, half3(0.20h, 0.18h, 0.22h), pencilZone); // kursun kalem grisi
+                // kursun kalem grisi; _PC_InkTint.a > 0 ise bolge rengi onun yerine (CourageZone: koyu kahve murekkep)
+                half3 pencilCol = lerp(half3(0.20h, 0.18h, 0.22h), (half3)_PC_InkTint.rgb, saturate(_PC_InkTint.a));
+                half3 inkCol = lerp(_InkColor.rgb, pencilCol, pencilZone);
                 return half4(inkCol, a * lerp(_InkColor.a, 0.88h, pencilZone));
             }
             ENDHLSL

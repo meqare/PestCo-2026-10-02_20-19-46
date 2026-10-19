@@ -94,9 +94,15 @@ public class PullableObject : MonoBehaviour
     // Fırlatma: Impulse; ağır nesne daha yavaş uçar.
     public void Throw(Vector3 direction, VacuumSettings s)
     {
+        Throw(direction, s.throwForce);
+    }
+
+    // Fırlatma, kuvveti dışarıdan verilir (şarjlı fırlatma).
+    public void Throw(Vector3 direction, float force)
+    {
         SetHeld(false);
         RestoreDefaults();
-        rb.AddForce(direction * s.throwForce, ForceMode.Impulse);
+        rb.AddForce(direction * force, ForceMode.Impulse);
     }
 
     // Sınır dışına çıkınca spawn noktasına taşır.

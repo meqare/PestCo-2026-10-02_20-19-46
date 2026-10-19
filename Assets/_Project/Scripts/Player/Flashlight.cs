@@ -52,7 +52,7 @@ public class Flashlight : MonoBehaviour
 
     private void Update()
     {
-        var keyboard = Keyboard.current;
+        var keyboard = PestCo.Truck.PestPC.IsOpen ? null : Keyboard.current; // PC açıkken tuşlar oyuna gitmesin
         if (keyboard != null)
         {
             if (keyboard.fKey.wasPressedThisFrame)

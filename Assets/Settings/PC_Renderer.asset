@@ -35,6 +35,7 @@ MonoBehaviour:
       type: 3}
   m_RendererFeatures:
   - {fileID: 7833122117494664109}
+  - {fileID: 244631803308655355}
   m_RendererFeatureMap: ad6b866f10d7b46c
   m_UseNativeRenderPass: 1
   xrSystemData: {fileID: 0}
@@ -63,7 +64,27 @@ MonoBehaviour:
   m_DepthAttachmentFormat: 0
   m_DepthTextureFormat: 0
   m_AccurateGbufferNormals: 0
-  m_IntermediateTextureMode: 0
+  m_IntermediateTextureMode: 1
+--- !u!114 &244631803308655355
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b00045f12942b46c698459096c89274e, type: 3}
+  m_Name: DepthInk
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.FullScreenPassRendererFeature
+  m_Active: 1
+  injectionPoint: 450
+  fetchColorBuffer: 0
+  requirements: 1
+  passMaterial: {fileID: 2100000, guid: b55195030c84ebb41a4fa898b8e1b77c, type: 2}
+  passIndex: 0
+  bindDepthStencilAttachment: 1
+  m_Version: 1
 --- !u!114 &7833122117494664109
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -82,11 +103,11 @@ MonoBehaviour:
     Downsample: 1
     AfterOpaque: 0
     Source: 1
-    NormalSamples: 1
-    Intensity: 1.4
-    DirectLightingStrength: 0.3
-    Radius: 0.45
-    Samples: 1
+    NormalSamples: 2
+    Intensity: 0.4
+    DirectLightingStrength: 0.1
+    Radius: 0.2
+    Samples: 0
     BlurQuality: 0
-    Falloff: 100
+    Falloff: 30
     SampleCount: -1

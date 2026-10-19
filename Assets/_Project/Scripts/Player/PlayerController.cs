@@ -66,7 +66,7 @@ public class PlayerController : MonoBehaviour
     {
         if (keyboard.escapeKey.wasPressedThisFrame)
             LockCursor(false);
-        else if (!JobBoardUI.IsOpen && Cursor.lockState != CursorLockMode.Locked && mouse.leftButton.wasPressedThisFrame)
+        else if (!JobBoardUI.IsOpen && !PestCo.Truck.PestPC.IsOpen && Cursor.lockState != CursorLockMode.Locked && mouse.leftButton.wasPressedThisFrame)
             LockCursor(true);
     }
 

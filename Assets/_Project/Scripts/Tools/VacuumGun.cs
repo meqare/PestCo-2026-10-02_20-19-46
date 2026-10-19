@@ -11,6 +11,8 @@ public class VacuumGun : MonoBehaviour
     [SerializeField] private Camera cam;
     [Tooltip("Çizgilerin çıktığı silah ucu. Boşsa kamera.")]
     [SerializeField] private Transform muzzle;
+    [Tooltip("Optional (Lanetli Yuk): pull force, max throw force and pull range are copied from this config onto a runtime copy of the settings.")]
+    [SerializeField] private GameConfig balanceConfig;
 
     private Transform camT;
     private Collider[] hitBuffer;
@@ -21,6 +23,8 @@ public class VacuumGun : MonoBehaviour
     private Vector3[] beamPositions;
     private bool pulling, throwRequested, dropRequested;
     private int scanId;
+    private Vector3 aimPoint;       // pointer mode: mouse ray hit on the aim plane
+    private float chargeStartTime;  // pointer mode: when the current object was grabbed
 
     public int HeldCount => held.Count;
 
@@ -31,6 +35,14 @@ public class VacuumGun : MonoBehaviour
             Debug.LogError("VacuumGun: VacuumSettings atanmamış.", this);
             enabled = false;
             return;
+        }
+        if (balanceConfig != null)
+        {
+            // Runtime copy so the shared settings asset is never modified.
+            settings = Instantiate(settings);
+            settings.pullForce = balanceConfig.pullForce;
+            settings.maxThrowForce = balanceConfig.maxThrowForce;
+            settings.pointerRadius = balanceConfig.pullRange;
         }
         if (cam == null) cam = Camera.main;
         camT = cam != null ? cam.transform : transform;
@@ -57,9 +69,15 @@ public class VacuumGun : MonoBehaviour
         if (mouse == null) return;
 
         pulling = Button(mouse, settings.pullButton).isPressed;
-        if (Button(mouse, settings.throwButton).wasPressedThisFrame) throwRequested = true;
+        if (settings.pointerMode)
+        {
+            UpdateAimPoint(mouse);
+            // Releasing the pull button throws whatever is held.
+            if (Button(mouse, settings.pullButton).wasReleasedThisFrame) throwRequested = true;
+        }
+        else if (Button(mouse, settings.throwButton).wasPressedThisFrame) throwRequested = true;
         var kb = Keyboard.current;
-        if (kb != null && kb[settings.dropKey].wasPressedThisFrame) dropRequested = true;
+        if (kb != null && !PestCo.Truck.PestPC.IsOpen && kb[settings.dropKey].wasPressedThisFrame) dropRequested = true;
     }
 
     private void FixedUpdate()
@@ -75,7 +93,12 @@ public class VacuumGun : MonoBehaviour
             {
                 PullableObject p = held[0];
                 held.RemoveAt(0);
-                p.Throw(camT.forward, settings);
+                if (settings.pointerMode)
+                {
+                    float charge = Mathf.Clamp01((Time.time - chargeStartTime) / settings.maxChargeTime);
+                    p.Throw(PointerThrowDirection(), Mathf.Lerp(settings.minThrowForce, settings.maxThrowForce, charge));
+                }
+                else p.Throw(camT.forward, settings);
             }
         }
 
@@ -87,7 +110,10 @@ public class VacuumGun : MonoBehaviour
     // Küre taraması (allocation yok) -> koni açısı -> engel kontrolü -> çekme.
     private void ScanAndPull(Vector3 origin)
     {
-        int count = Physics.OverlapSphereNonAlloc(origin, settings.maxDistance, hitBuffer,
+        bool pointer = settings.pointerMode;
+        if (pointer) origin = aimPoint;
+        float radius = pointer ? settings.pointerRadius : settings.maxDistance;
+        int count = Physics.OverlapSphereNonAlloc(origin, radius, hitBuffer,
             settings.pullableLayers, QueryTriggerInteraction.Ignore);
         scanId++;
         Vector3 fwd = camT.forward;
@@ -105,9 +131,17 @@ public class VacuumGun : MonoBehaviour
             Vector3 target = body.worldCenterOfMass;
             Vector3 to = target - origin;
             float dist = to.magnitude;
-            if (dist > settings.maxDistance || dist < 0.0001f) continue;
-            if (Vector3.Angle(fwd, to) > halfAngle) continue;
-            if (Physics.Linecast(origin, target, settings.obstacleLayers, QueryTriggerInteraction.Ignore)) continue;
+            if (dist > radius || dist < 0.0001f) continue;
+            if (pointer)
+            {
+                // Pointer mode: no cone or line-of-sight check, and only the held object is pulled once full.
+                if (!canGrab) continue;
+            }
+            else
+            {
+                if (Vector3.Angle(fwd, to) > halfAngle) continue;
+                if (Physics.Linecast(origin, target, settings.obstacleLayers, QueryTriggerInteraction.Ignore)) continue;
+            }
 
             Vector3 dirToGun = -to / dist;
             Vector3 pullPoint = HoldPoint(origin, 0);
@@ -118,6 +152,7 @@ public class VacuumGun : MonoBehaviour
             if (canGrab && distToHold <= settings.holdSnapDistance)
             {
                 p.SetHeld(true);
+                if (held.Count == 0) chargeStartTime = Time.time;
                 held.Add(p);
                 canGrab = held.Count < settings.maxHeldObjects;
                 continue;
@@ -126,7 +161,7 @@ public class VacuumGun : MonoBehaviour
 
             // Çekim tutma noktasına doğru olur (oyuncunun içine değil).
             Vector3 towards = (pullPoint - target).normalized;
-            p.ApplyPull(towards, dist / settings.maxDistance, settings);
+            p.ApplyPull(towards, dist / radius, settings);
             if (settings.debugDraw) Debug.DrawRay(target, towards * 1.5f, settings.debugPullColor);
             if (beamTargetCount < beamTargets.Length) beamTargets[beamTargetCount++] = p;
         }
@@ -147,6 +182,7 @@ public class VacuumGun : MonoBehaviour
     // i. nesne için tutma noktası: kamera uzayında offset + yana dizilim.
     private Vector3 HoldPoint(Vector3 origin, int index)
     {
+        if (settings.pointerMode) return aimPoint; // single held object sits on the aim point
         int n = Mathf.Max(1, held.Count);
         float spread = (index - (n - 1) * 0.5f) * settings.holdSpacing;
         Vector3 local = settings.holdOffset + Vector3.right * spread;
@@ -159,6 +195,24 @@ public class VacuumGun : MonoBehaviour
             return origin + r * local.x + f * local.z;
         }
         return origin + camT.right * local.x + camT.up * local.y + camT.forward * local.z;
+    }
+
+    // Mouse ray -> horizontal aim plane. Keeps the previous point if the ray misses the plane.
+    private void UpdateAimPoint(Mouse mouse)
+    {
+        if (cam == null) return;
+        Ray ray = cam.ScreenPointToRay(mouse.position.ReadValue());
+        var plane = new Plane(Vector3.up, new Vector3(0f, settings.pointerPlaneY, 0f));
+        if (plane.Raycast(ray, out float enter)) aimPoint = ray.GetPoint(enter);
+    }
+
+    // Throw from the held object away from the gun, toward the aim point, flattened to the ground plane.
+    private Vector3 PointerThrowDirection()
+    {
+        Vector3 dir = aimPoint - transform.position;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.01f) { dir = transform.forward; dir.y = 0f; }
+        return dir.normalized;
     }
 
     private void PruneHeld()

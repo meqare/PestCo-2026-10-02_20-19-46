@@ -24,7 +24,7 @@ public class ShopZone : MonoBehaviour
 
     private void Update()
     {
-        if (!playerInside || Keyboard.current == null) return;
+        if (!playerInside || Keyboard.current == null || PestCo.Truck.PestPC.IsOpen) return;
 
         if (Keyboard.current.eKey.wasPressedThisFrame)
         {

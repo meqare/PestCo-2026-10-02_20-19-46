@@ -74,7 +74,7 @@ public class SprayVisual : MonoBehaviour
     private void Update()
     {
         var keyboard = Keyboard.current;
-        if (keyboard != null && keyboard.rKey.wasPressedThisFrame)
+        if (keyboard != null && !PestCo.Truck.PestPC.IsOpen && keyboard.rKey.wasPressedThisFrame)
             Refill();
 
         var mouse = Mouse.current;

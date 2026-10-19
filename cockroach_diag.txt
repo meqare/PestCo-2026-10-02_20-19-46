@@ -1,0 +1,103 @@
+﻿Animator controller: AC_Cockroach
+Pivot var mi: True  localScale=(1.0000, 1.0400, 1.0000)
+SkinnedMeshRenderer sayisi: 1  bones=18
+
+=== BASELINE (Animator.Rebind sonrasi) ===
+  baseline t=0,00 Cockroach_Idle                 pivotScale=(1.000, 1.000, 1.000) meshSize=(0.345, 0.751, 0.304) y=[-0,320,0,431]
+  baseline mesh boyutu: (0.3455, 0.7505, 0.3044)  y araligi [-0,3199, 0,4306]
+
+=== A) Animator Pivot olcegini geri yaziyor mu? ===
+  elle (1,2,1) yazildi; Update(0.016) sonrasi Pivot.localScale = (1.0070, 1.0106, 1.0070)
+  elle (1.3,0.6,1.3) yazildi; Update(0.016) sonrasi Pivot.localScale = (1.0080, 1.0120, 1.0080)
+
+=== B) ZIPLAMA (3 kez art arda) ===
+  -- ziplama #1
+  j1 t=0,00 Cockroach_Idle>Cockroach_Jump  pivotScale=(1.013, 1.019, 1.013) meshSize=(0.340, 0.780, 0.322) y=[-0,325,0,455]
+  j1 t=0,10 Cockroach_Jump>Cockroach_Idle  pivotScale=(0.944, 1.096, 0.944) meshSize=(0.323, 0.870, 0.247) y=[-0,364,0,506]
+  j1 t=0,20 Cockroach_Idle>Cockroach_Jump  pivotScale=(0.992, 1.021, 0.992) meshSize=(0.354, 0.733, 0.394) y=[-0,331,0,402]
+  j1 t=0,30 Cockroach_Jump                 pivotScale=(0.866, 1.223, 0.866) meshSize=(0.278, 0.991, 0.215) y=[-0,389,0,602]
+  j1 t=0,40 Cockroach_Jump                 pivotScale=(0.850, 1.250, 0.850) meshSize=(0.281, 0.946, 0.313) y=[-0,387,0,559]
+  j1 t=0,50 Cockroach_Jump                 pivotScale=(0.850, 1.250, 0.850) meshSize=(0.281, 0.949, 0.302) y=[-0,387,0,563]
+  j1 t=0,60 Cockroach_Jump>Cockroach_Idle  pivotScale=(0.946, 1.097, 0.946) meshSize=(0.314, 0.901, 0.252) y=[-0,349,0,552]
+  j1 t=0,70 Cockroach_Idle                 pivotScale=(1.009, 1.014, 1.009) meshSize=(0.340, 0.767, 0.321) y=[-0,323,0,444]
+  j1 t=0,80 Cockroach_Idle                 pivotScale=(1.014, 1.021, 1.014) meshSize=(0.342, 0.785, 0.321) y=[-0,325,0,460]
+  j1 t=0,90 Cockroach_Idle                 pivotScale=(1.018, 1.026, 1.018) meshSize=(0.349, 0.806, 0.319) y=[-0,327,0,479]
+  j1 t=1,00 Cockroach_Idle                 pivotScale=(1.020, 1.030, 1.020) meshSize=(0.358, 0.814, 0.317) y=[-0,328,0,486]
+  j1 t=1,10 Cockroach_Idle                 pivotScale=(1.020, 1.030, 1.020) meshSize=(0.366, 0.805, 0.314) y=[-0,328,0,477]
+  j1 t=1,20 Cockroach_Idle                 pivotScale=(1.018, 1.026, 1.018) meshSize=(0.369, 0.788, 0.310) y=[-0,327,0,462]
+  j1 t=1,30 Cockroach_Idle                 pivotScale=(1.014, 1.021, 1.014) meshSize=(0.367, 0.776, 0.305) y=[-0,325,0,451]
+  j1 t=1,40 Cockroach_Idle                 pivotScale=(1.009, 1.014, 1.009) meshSize=(0.361, 0.769, 0.299) y=[-0,323,0,446]
+  j1 t=1,50 Cockroach_Idle                 pivotScale=(1.003, 1.004, 1.003) meshSize=(0.352, 0.756, 0.304) y=[-0,321,0,435]
+  j1 t=1,60 Cockroach_Idle                 pivotScale=(0.997, 0.996, 0.997) meshSize=(0.339, 0.744, 0.308) y=[-0,319,0,425]
+  -- ziplama #2
+  j2 t=0,00 Cockroach_Idle>Cockroach_Jump  pivotScale=(0.982, 0.973, 0.982) meshSize=(0.343, 0.718, 0.289) y=[-0,314,0,404]
+  j2 t=0,10 Cockroach_Jump>Cockroach_Idle  pivotScale=(0.944, 1.096, 0.944) meshSize=(0.323, 0.870, 0.247) y=[-0,364,0,506]
+  j2 t=0,20 Cockroach_Idle>Cockroach_Jump  pivotScale=(0.992, 1.021, 0.992) meshSize=(0.354, 0.733, 0.394) y=[-0,331,0,402]
+  j2 t=0,30 Cockroach_Jump                 pivotScale=(0.866, 1.223, 0.866) meshSize=(0.278, 0.991, 0.215) y=[-0,389,0,602]
+  j2 t=0,40 Cockroach_Jump                 pivotScale=(0.850, 1.250, 0.850) meshSize=(0.281, 0.946, 0.313) y=[-0,387,0,559]
+  j2 t=0,50 Cockroach_Jump                 pivotScale=(0.850, 1.250, 0.850) meshSize=(0.281, 0.949, 0.302) y=[-0,387,0,563]
+  j2 t=0,60 Cockroach_Jump>Cockroach_Idle  pivotScale=(0.946, 1.097, 0.946) meshSize=(0.314, 0.901, 0.252) y=[-0,349,0,552]
+  j2 t=0,70 Cockroach_Idle                 pivotScale=(1.009, 1.014, 1.009) meshSize=(0.340, 0.767, 0.321) y=[-0,323,0,444]
+  j2 t=0,80 Cockroach_Idle                 pivotScale=(1.014, 1.021, 1.014) meshSize=(0.342, 0.785, 0.321) y=[-0,325,0,460]
+  j2 t=0,90 Cockroach_Idle                 pivotScale=(1.018, 1.026, 1.018) meshSize=(0.349, 0.806, 0.319) y=[-0,327,0,479]
+  j2 t=1,00 Cockroach_Idle                 pivotScale=(1.020, 1.030, 1.020) meshSize=(0.358, 0.814, 0.317) y=[-0,328,0,486]
+  j2 t=1,10 Cockroach_Idle                 pivotScale=(1.020, 1.030, 1.020) meshSize=(0.366, 0.805, 0.314) y=[-0,328,0,477]
+  j2 t=1,20 Cockroach_Idle                 pivotScale=(1.018, 1.026, 1.018) meshSize=(0.369, 0.788, 0.310) y=[-0,327,0,462]
+  j2 t=1,30 Cockroach_Idle                 pivotScale=(1.014, 1.021, 1.014) meshSize=(0.367, 0.776, 0.305) y=[-0,325,0,451]
+  j2 t=1,40 Cockroach_Idle                 pivotScale=(1.009, 1.014, 1.009) meshSize=(0.361, 0.769, 0.299) y=[-0,323,0,446]
+  j2 t=1,50 Cockroach_Idle                 pivotScale=(1.003, 1.004, 1.003) meshSize=(0.352, 0.756, 0.304) y=[-0,321,0,435]
+  j2 t=1,60 Cockroach_Idle                 pivotScale=(0.997, 0.996, 0.997) meshSize=(0.339, 0.744, 0.308) y=[-0,319,0,425]
+  -- ziplama #3
+  j3 t=0,00 Cockroach_Idle>Cockroach_Jump  pivotScale=(0.982, 0.973, 0.982) meshSize=(0.343, 0.718, 0.289) y=[-0,314,0,404]
+  j3 t=0,10 Cockroach_Jump>Cockroach_Idle  pivotScale=(0.944, 1.096, 0.944) meshSize=(0.323, 0.870, 0.247) y=[-0,364,0,506]
+  j3 t=0,20 Cockroach_Idle>Cockroach_Jump  pivotScale=(0.992, 1.021, 0.992) meshSize=(0.354, 0.733, 0.394) y=[-0,331,0,402]
+  j3 t=0,30 Cockroach_Jump                 pivotScale=(0.866, 1.223, 0.866) meshSize=(0.278, 0.991, 0.215) y=[-0,389,0,602]
+  j3 t=0,40 Cockroach_Jump                 pivotScale=(0.850, 1.250, 0.850) meshSize=(0.281, 0.946, 0.313) y=[-0,387,0,559]
+  j3 t=0,50 Cockroach_Jump                 pivotScale=(0.850, 1.250, 0.850) meshSize=(0.281, 0.949, 0.302) y=[-0,387,0,563]
+  j3 t=0,60 Cockroach_Jump>Cockroach_Idle  pivotScale=(0.946, 1.097, 0.946) meshSize=(0.314, 0.901, 0.252) y=[-0,349,0,552]
+  j3 t=0,70 Cockroach_Idle                 pivotScale=(1.009, 1.014, 1.009) meshSize=(0.340, 0.767, 0.321) y=[-0,323,0,444]
+  j3 t=0,80 Cockroach_Idle                 pivotScale=(1.014, 1.021, 1.014) meshSize=(0.342, 0.785, 0.321) y=[-0,325,0,460]
+  j3 t=0,90 Cockroach_Idle                 pivotScale=(1.018, 1.026, 1.018) meshSize=(0.349, 0.806, 0.319) y=[-0,327,0,479]
+  j3 t=1,00 Cockroach_Idle                 pivotScale=(1.020, 1.030, 1.020) meshSize=(0.358, 0.814, 0.317) y=[-0,328,0,486]
+  j3 t=1,10 Cockroach_Idle                 pivotScale=(1.020, 1.030, 1.020) meshSize=(0.366, 0.805, 0.314) y=[-0,328,0,477]
+  j3 t=1,20 Cockroach_Idle                 pivotScale=(1.018, 1.026, 1.018) meshSize=(0.369, 0.788, 0.310) y=[-0,327,0,462]
+  j3 t=1,30 Cockroach_Idle                 pivotScale=(1.014, 1.021, 1.014) meshSize=(0.367, 0.776, 0.305) y=[-0,325,0,451]
+  j3 t=1,40 Cockroach_Idle                 pivotScale=(1.009, 1.014, 1.009) meshSize=(0.361, 0.769, 0.299) y=[-0,323,0,446]
+  j3 t=1,50 Cockroach_Idle                 pivotScale=(1.003, 1.004, 1.003) meshSize=(0.352, 0.756, 0.304) y=[-0,321,0,435]
+  j3 t=1,60 Cockroach_Idle                 pivotScale=(0.997, 0.996, 0.997) meshSize=(0.339, 0.744, 0.308) y=[-0,319,0,425]
+
+=== C) IsWalking (1 sn) ===
+  IsWalking t=0,00 Cockroach_Idle>Cockroach_Walk  pivotScale=(1.013, 1.019, 1.013) meshSize=(0.340, 0.780, 0.322) y=[-0,325,0,455]
+  IsWalking t=0,10 Cockroach_Walk                 pivotScale=(1.000, 1.000, 1.000) meshSize=(0.332, 0.716, 0.388) y=[-0,301,0,415]
+  IsWalking t=0,20 Cockroach_Walk                 pivotScale=(1.000, 1.000, 1.000) meshSize=(0.346, 0.733, 0.378) y=[-0,296,0,438]
+  IsWalking t=0,30 Cockroach_Walk                 pivotScale=(1.000, 1.000, 1.000) meshSize=(0.344, 0.781, 0.335) y=[-0,293,0,487]
+  IsWalking t=0,40 Cockroach_Walk                 pivotScale=(1.000, 1.000, 1.000) meshSize=(0.342, 0.754, 0.368) y=[-0,301,0,453]
+  IsWalking t=0,50 Cockroach_Walk                 pivotScale=(1.000, 1.000, 1.000) meshSize=(0.327, 0.750, 0.373) y=[-0,296,0,455]
+  IsWalking t=0,60 Cockroach_Walk                 pivotScale=(1.000, 1.000, 1.000) meshSize=(0.315, 0.746, 0.363) y=[-0,293,0,453]
+  IsWalking t=0,70 Cockroach_Walk                 pivotScale=(1.000, 1.000, 1.000) meshSize=(0.332, 0.716, 0.388) y=[-0,301,0,415]
+  IsWalking t=0,80 Cockroach_Walk                 pivotScale=(1.000, 1.000, 1.000) meshSize=(0.346, 0.733, 0.378) y=[-0,296,0,438]
+  IsWalking t=0,90 Cockroach_Walk                 pivotScale=(1.000, 1.000, 1.000) meshSize=(0.344, 0.781, 0.335) y=[-0,293,0,487]
+  IsWalking t=1,00 Cockroach_Walk                 pivotScale=(1.000, 1.000, 1.000) meshSize=(0.342, 0.754, 0.368) y=[-0,301,0,453]
+
+=== C) IsRunning (1 sn) ===
+  IsRunning t=0,00 Cockroach_Idle>Cockroach_Run   pivotScale=(1.013, 1.019, 1.013) meshSize=(0.340, 0.780, 0.322) y=[-0,325,0,455]
+  IsRunning t=0,10 Cockroach_Run                  pivotScale=(1.000, 1.040, 1.000) meshSize=(0.358, 0.668, 0.541) y=[-0,283,0,385]
+  IsRunning t=0,20 Cockroach_Run                  pivotScale=(1.000, 1.040, 1.000) meshSize=(0.348, 0.687, 0.566) y=[-0,257,0,430]
+  IsRunning t=0,30 Cockroach_Run                  pivotScale=(1.000, 1.040, 1.000) meshSize=(0.288, 0.755, 0.494) y=[-0,255,0,499]
+  IsRunning t=0,40 Cockroach_Run                  pivotScale=(1.000, 1.040, 1.000) meshSize=(0.355, 0.651, 0.550) y=[-0,326,0,325]
+  IsRunning t=0,50 Cockroach_Run                  pivotScale=(1.000, 1.040, 1.000) meshSize=(0.341, 0.737, 0.500) y=[-0,251,0,486]
+  IsRunning t=0,60 Cockroach_Run                  pivotScale=(1.000, 1.040, 1.000) meshSize=(0.305, 0.714, 0.543) y=[-0,263,0,451]
+  IsRunning t=0,70 Cockroach_Run                  pivotScale=(1.000, 1.040, 1.000) meshSize=(0.339, 0.664, 0.546) y=[-0,296,0,368]
+  IsRunning t=0,80 Cockroach_Run                  pivotScale=(1.000, 1.040, 1.000) meshSize=(0.338, 0.772, 0.467) y=[-0,259,0,514]
+  IsRunning t=0,90 Cockroach_Run                  pivotScale=(1.000, 1.040, 1.000) meshSize=(0.326, 0.668, 0.585) y=[-0,282,0,385]
+  IsRunning t=1,00 Cockroach_Run                  pivotScale=(1.000, 1.040, 1.000) meshSize=(0.315, 0.686, 0.522) y=[-0,259,0,427]
+
+=== D) Ziplama sirasinda en cok sapan kemikler (baseline'a gore) ===
+  olcek sapmasi Spine: 10,0 %   konum sapmasi: 0,0000
+  olcek sapmasi Body: 0,0 %   konum sapmasi: 0,0000
+  olcek sapmasi Hips: 0,0 %   konum sapmasi: 0,0050
+  olcek sapmasi Chest: 0,0 %   konum sapmasi: 0,0000
+  olcek sapmasi Head: 0,0 %   konum sapmasi: 0,0000
+  olcek sapmasi AntL: 0,0 %   konum sapmasi: 0,0000
+  olcek sapmasi AntL2: 0,0 %   konum sapmasi: 0,0000
+  olcek sapmasi AntR: 0,0 %   konum sapmasi: 0,0000

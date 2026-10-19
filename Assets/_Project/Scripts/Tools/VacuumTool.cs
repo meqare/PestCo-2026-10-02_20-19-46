@@ -49,6 +49,13 @@ public class VacuumTool : MonoBehaviour
     [SerializeField, Min(0.05f)] private float balloonAimRadius = 0.35f;
     [SerializeField] private LayerMask balloonLayers = ~0;
 
+    [Header("Kule (TowerItem)")]
+    [Tooltip("TowerItem'ın kuleye eklendiği mesafe.")]
+    [SerializeField, Min(0.1f)] private float towerAttachDistance = 1.5f;
+    [SerializeField, Min(0.1f)] private float towerPullSpeed = 6f;
+    [Tooltip("Boşsa WobblyTowerManager.Instance Start'ta otomatik bulunur.")]
+    [SerializeField] private WobblyTowerManager towerManager;
+
     [Header("Ses")]
     [Tooltip("Çekerken döngüde çalar. Boşsa ses yok.")]
     [SerializeField] private AudioClip vacuumLoopSound;
@@ -70,6 +77,10 @@ public class VacuumTool : MonoBehaviour
     private int targetCount;
     private BugController[] bugTargets;
     private int bugTargetCount;
+    // Spreyle bayılmış kafes böcekleri: üstteki kapsüle alınır.
+    private CageableBug[] cageTargets;
+    private int cageTargetCount;
+    private VacuumCapsule capsule;
     private float scanTimer;
     private float nextDebugLogTime;
 
@@ -78,6 +89,9 @@ public class VacuumTool : MonoBehaviour
     private BalloonPhysicsItem heldBalloon;
     private CharacterController playerController;
     private RaycastHit[] balloonHits;
+
+    // Kule: şu an kuleye doğru çekilen eşya.
+    private TowerItem pulledTowerItem;
 
     // Referansları bulur, dizileri ve sesi bir kere hazırlar (Update'te hiç new yok).
     private void Awake()
@@ -89,6 +103,8 @@ public class VacuumTool : MonoBehaviour
         hitBuffer = new Collider[colliderBufferSize];
         targets = new Pest[maxTargets];
         bugTargets = new BugController[maxTargets];
+        cageTargets = new CageableBug[maxTargets];
+        capsule = GetComponentInChildren<VacuumCapsule>(true);
         balloonHits = new RaycastHit[16];
         playerController = GetComponentInParent<CharacterController>();
 
@@ -98,25 +114,33 @@ public class VacuumTool : MonoBehaviour
         loopSource.clip = vacuumLoopSound;
     }
 
+    private void Start()
+    {
+        if (towerManager == null)
+            towerManager = WobblyTowerManager.Instance != null ? WobblyTowerManager.Instance : FindFirstObjectByType<WobblyTowerManager>();
+    }
+
     // Alet değiştirilince çalışma durur (partikül ve ses takılı kalmasın).
     private void OnDisable()
     {
         SetRunning(false);
         ClearTargets();
         ReleaseBalloon();
+        pulledTowerItem = null;
     }
 
     // Girişi okur: boşaltma, çalıştırma; çalışırken tarar ve çeker.
     private void Update()
     {
         var keyboard = Keyboard.current;
-        if (keyboard != null && keyboard[emptyKey].wasPressedThisFrame)
+        if (keyboard != null && !PestCo.Truck.PestPC.IsOpen && keyboard[emptyKey].wasPressedThisFrame)
             Empty();
 
         var mouse = Mouse.current;
         bool running = mouse != null && mouse.rightButton.isPressed && !IsFull;
         SetRunning(running);
         UpdateBalloon(running);
+        UpdateTowerPull(running);
 
         // GEÇİCİ: canlı test logları.
         if (debugLogs && mouse != null && mouse.rightButton.wasPressedThisFrame)
@@ -158,6 +182,68 @@ public class VacuumTool : MonoBehaviour
         EnsureBalloonAnchor();
         if (balloonAnchor != null && item.TryAttach(balloonAnchor, playerController))
             heldBalloon = item;
+    }
+
+    // Nişandaki TowerItem'ı kule tabanına çeker; yeterince yaklaşınca kuleye ekler. Bırakınca fizik serbest kalır.
+    private void UpdateTowerPull(bool running)
+    {
+        if (!running)
+        {
+            pulledTowerItem = null;
+            return;
+        }
+
+        if (towerManager == null) towerManager = WobblyTowerManager.Instance;
+        if (towerManager == null || towerManager.TowerBasePoint == null) return;
+
+        if (pulledTowerItem != null && pulledTowerItem.IsStacked) pulledTowerItem = null;
+        if (pulledTowerItem == null && !IsAimingAtTowerItem(out pulledTowerItem)) return;
+
+        Vector3 target = towerManager.TowerBasePoint.position;
+        Vector3 toTarget = target - pulledTowerItem.transform.position;
+        float dist = toTarget.magnitude;
+
+        if (dist <= towerAttachDistance)
+        {
+            TowerItem item = pulledTowerItem;
+            pulledTowerItem = null;
+            towerManager.AddItemToTower(item);
+            Debug.Log($"[KULE] '{item.name}' başarıyla istiflendi! Toplam Eşya: {towerManager.StackCount}", item);
+            return;
+        }
+
+        // Menzil dışına çıkan eşya bırakılır.
+        if ((pulledTowerItem.transform.position - camTransform.position).sqrMagnitude > balloonRange * balloonRange * 2.25f)
+        {
+            pulledTowerItem = null;
+            return;
+        }
+
+        if (pulledTowerItem.TryGetComponent(out Rigidbody rb) && !rb.isKinematic)
+            rb.linearVelocity = toTarget / dist * Mathf.Min(towerPullSpeed, dist / Mathf.Max(Time.deltaTime, 0.0001f));
+    }
+
+    // Kameradan ileri küre taraması: en yakın engel stack'lenmemiş bir TowerItem ise hedeftir.
+    private bool IsAimingAtTowerItem(out TowerItem item)
+    {
+        item = null;
+        int count = Physics.SphereCastNonAlloc(camTransform.position, balloonAimRadius, camTransform.forward,
+            balloonHits, balloonRange, balloonLayers, QueryTriggerInteraction.Ignore);
+
+        float nearest = float.MaxValue;
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit hit = balloonHits[i];
+            if (hit.distance <= 0f && hit.point == Vector3.zero) continue;
+            if (playerController != null && hit.collider.transform.IsChildOf(playerController.transform)) continue;
+            if (hit.distance >= nearest) continue;
+
+            nearest = hit.distance;
+            item = hit.collider.GetComponentInParent<TowerItem>();
+        }
+
+        if (item != null && item.IsStacked) item = null;
+        return item != null;
     }
 
     private void ReleaseBalloon()
@@ -225,6 +311,14 @@ public class VacuumTool : MonoBehaviour
             if (checkAngle && flatTo.sqrMagnitude > 0.0001f && Vector3.Angle(flatForward, flatTo) > halfAngle) continue;
             if (Physics.Linecast(origin, targetPos, obstacleLayers, QueryTriggerInteraction.Ignore)) continue;
 
+            // Kafes böceği sadece baygınken çekilir (uyanıkken önce spreyle bayıltılmalı).
+            if (col.TryGetComponent(out CageableBug cageBug))
+            {
+                if (capsule != null && cageBug.IsStunned && cageTargetCount < cageTargets.Length)
+                    cageTargets[cageTargetCount++] = cageBug;
+                continue;
+            }
+
             if (col.TryGetComponent(out BugController bug))
             {
                 if (bugTargetCount < bugTargets.Length) bugTargets[bugTargetCount++] = bug;
@@ -272,6 +366,33 @@ public class VacuumTool : MonoBehaviour
         }
 
         PullBugs(dt);
+        PullCageBugs(dt);
+    }
+
+    // Baygın kafes böceklerini çeker; yaklaşanı vakumun üstündeki kapsüle alır (kapsül doluysa yakında bekletir).
+    private void PullCageBugs(float dt)
+    {
+        Vector3 origin = camTransform.position;
+
+        for (int i = 0; i < cageTargetCount; i++)
+        {
+            CageableBug bug = cageTargets[i];
+            if (bug == null || !bug.gameObject.activeInHierarchy || !bug.IsStunned) continue;
+
+            Vector3 toPlayer = origin - bug.transform.position;
+            toPlayer.y = 0f;
+            float dist = toPlayer.magnitude;
+
+            if (dist <= suckDistance && capsule.TryStore(bug))
+            {
+                cageTargets[i] = null;
+                continue;
+            }
+
+            float hold = capsule.IsFull ? suckDistance : 0f;
+            float step = Mathf.Min(bugPullSpeed * dt, Mathf.Max(0f, dist - hold));
+            bug.VacuumPull(dist > 0.0001f ? toPlayer / dist * step : Vector3.zero);
+        }
     }
 
     // BugController böceklerini çeker: ilk temasta çıldırtır, yaklaşanı yutar.
@@ -373,6 +494,10 @@ public class VacuumTool : MonoBehaviour
         for (int i = 0; i < bugTargetCount; i++)
             bugTargets[i] = null;
         bugTargetCount = 0;
+
+        for (int i = 0; i < cageTargetCount; i++)
+            cageTargets[i] = null;
+        cageTargetCount = 0;
     }
 
     // Seçiliyken Scene penceresinde menzili ve yutma mesafesini çizer.

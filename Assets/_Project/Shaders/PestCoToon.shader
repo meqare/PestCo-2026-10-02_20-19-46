@@ -68,10 +68,12 @@ Shader "PestCo/Toon"
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
+            #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
             #pragma shader_feature_local_fragment _NORMALMAP
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "PCWonky.hlsl"
             #include "PCNoir.hlsl"
+            #include "PCCourage.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             TEXTURE2D(_BrushTex); SAMPLER(sampler_BrushTex);
@@ -188,6 +190,13 @@ Shader "PestCo/Toon"
                 // once kontrast artirilir: genis alanlar duz kalir, dither sadece isik havuzu kenarlarinda ve golgede gorunur
                 half ttHard = saturate((tt - 0.5h) * 2.6h + 0.5h);
                 tt = lerp(tt, (half)step(nBayer, ttHard), saturate(nw * 4.0h));
+                // Courage bolgesi: sert toon basamagi yerine genis, yumusak airbrush golge gecisi
+                half cw = PCCourZone(i.posWS);
+                if (cw > 0.001h)
+                {
+                    half soft = smoothstep(0.05h, 0.95h, dot(n, ml.direction) * 0.5h + 0.5h) * lerp(1.0h, ml.shadowAttenuation, 0.75h);
+                    tt = lerp(tt, saturate(soft + lampT * 0.9h), cw * _PC_CourS.a);
+                }
                 // gokyuzu/zemin ortam yansimasi: golge tarafi yukari bakinca soguk, asagi bakinca sicak
                 half3 amb = lerp(half3(0.62h, 0.50h, 0.38h), half3(0.62h, 0.76h, 1.0h), n.y * 0.5h + 0.5h);
                 shd = lerp(shd, shd * amb * 1.55h, _AmbientStrength * 0.55h);
@@ -211,7 +220,7 @@ Shader "PestCo/Toon"
                 // derinlik: uzaklastikca sicak-mavimsi pus
                 float dist = distance(_WorldSpaceCameraPos, i.posWS);
                 half fog = 1.0h - exp(-dist * 0.07h);
-                col = lerp(col, lerp(half3(0.86h, 0.80h, 0.72h), half3(0.72h, 0.76h, 0.92h), _PC_YellowCut) * dot(col, half3(0.33h,0.33h,0.33h)) * 1.15h + half3(0.05h,0.05h,0.06h), fog * 0.35h);
+                col = lerp(col, lerp(half3(0.86h, 0.80h, 0.72h), half3(0.72h, 0.76h, 0.92h), _PC_YellowCut) * dot(col, half3(0.33h,0.33h,0.33h)) * 1.15h + half3(0.05h,0.05h,0.06h), fog * 0.0h);
                 // stilize parlama + sicak kenar isigi
                 half3 v = GetWorldSpaceNormalizeViewDir(i.posWS);
                 half3 hv = normalize(ml.direction + v);
@@ -245,6 +254,11 @@ Shader "PestCo/Toon"
                     real = real / (1.0h + real * 0.12h); // yumusak tonlama: parlak alanlar patlamasin
                     col = lerp(col, real, saturate(_Realism * 1.15h));
                 }
+                // Ekran uzayi ortam golgelemesi (SSAO ozelligi aciksa): koselere, dolap altlarina temas golgesi
+                #if defined(_SCREEN_SPACE_OCCLUSION)
+                    AmbientOcclusionFactor aoF = GetScreenSpaceAmbientOcclusion(GetNormalizedScreenSpaceUV(i.posCS));
+                    col *= lerp(1.0h, aoF.indirectAmbientOcclusion, 0.85h) * lerp(1.0h, aoF.directAmbientOcclusion, 0.5h);
+                #endif
                 // Elle cizim: golgede kalem taramasi (hatching) + kagit greni. Sadece CartoonWonky bolgesinde (_PC_HatchP.x > 0).
                 if (_PC_HatchP.x > 0.001)
                 {
@@ -291,6 +305,25 @@ Shader "PestCo/Toon"
                     half gr = PCNoirHash(floor(i.posCS.xy / max(_PC_NoirP.x, 1.0)) + floor(_Time.y * 12.0));
                     col *= 1.0h + (gr - 0.5h) * _PC_NoirL.a * nw;
                 }
+                // Courage bolgesi (Cesur Korkak Kopek): elle boyanmis guaj alacasi, soluk 90'lar paleti,
+                // mor-kahve golge / krem-hardal isik, kose-tavan airbrush kararmasi, sabit kagit greni.
+                if (cw > 0.001h)
+                {
+                    float2 mp = (an.x >= an.y && an.x >= an.z) ? i.posWS.zy : (an.y >= an.z ? i.posWS.xz : i.posWS.xy);
+                    col *= 1.0h + (half)PCCourMottle(mp) * _PC_CourP.y * cw;
+                    half lc = dot(col, half3(0.299h, 0.587h, 0.114h));
+                    col = lerp(col, lerp(lc.xxx, col, 1.0h - _PC_CourP.x), cw);
+                    half lt = dot(col, half3(0.299h, 0.587h, 0.114h));
+                    half3 tone = lerp(_PC_CourS.rgb, _PC_CourL.rgb, smoothstep(0.08h, 0.8h, lt));
+                    col = lerp(col, col * tone, cw);
+                    // soluk baski: siyahlar mor-kahveye kalkar, beyazlar kremlesir
+                    col = lerp(col, col * 0.86h + _PC_CourS.rgb * 0.06h, cw);
+                    half vig = saturate(PCCourEdge(i.posWS) * 0.7h + smoothstep(1.9h, 2.8h, i.posWS.y) * 0.8h + (1.0h - smoothstep(0.0h, 0.45h, i.posWS.y)) * 0.35h);
+                    half3 vigCol = lerp(half3(1, 1, 1), half3(0.5h, 0.4h, 0.5h), vig);
+                    col *= lerp(half3(1, 1, 1), vigCol, _PC_CourL.a * cw);
+                    half g = PCCourHash(floor(i.posCS.xy * 0.5));
+                    col *= 1.0h + (g - 0.5h) * _PC_CourP.z * cw;
+                }
                 col += _EmissionColor.rgb;
                 return half4(col, 1);
             }
@@ -311,6 +344,7 @@ Shader "PestCo/Toon"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "PCWonky.hlsl"
             #include "PCNoir.hlsl"
+            #include "PCCourage.hlsl"
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor, _ShadowColor, _EmissionColor, _OutlineColor, _GradTop, _GradBottom; float4 _BaseMap_ST, _BumpMap_ST;
@@ -320,7 +354,7 @@ Shader "PestCo/Toon"
             half _PC_OutlineCut; // kuresel kontur inceltme (0 = eski kalinlik)
 
             struct A { float4 posOS : POSITION; float3 nOS : NORMAL; };
-            struct V { float4 posCS : SV_POSITION; };
+            struct V { float4 posCS : SV_POSITION; half cw : TEXCOORD0; };
 
             V vert(A i)
             {
@@ -335,6 +369,10 @@ Shader "PestCo/Toon"
                 // Kalem baskisi: kontur kalinligi çizgi boyunca hafifçe değişir (elle çizilmiş görünüm).
                 float3 pw = PCWonk(TransformObjectToWorld(i.posOS.xyz), _WonkyOn);
                 float wobble = 1.0 + 0.22 * sin(dot(pw, float3(7.3, 5.1, 6.7))) + 0.12 * sin(dot(pw, float3(23.0, 19.0, 17.0)));
+                // Courage bolgesi: ince, daha titrek elle cizilmis kontur
+                float cwo = PCCourZone(pw);
+                o.cw = (half)cwo;
+                wobble = lerp(wobble, _PC_CourP.w * (1.0 + 0.45 * sin(dot(pw, float3(11.3, 8.1, 9.7))) + 0.2 * sin(dot(pw, float3(31.0, 27.0, 23.0)))), saturate(cwo));
                 // Uzaklastikca kontur incelir (ekranda sabit piksel olursa kucuk nesne siyah leke gorunur).
                 float farT = saturate((length(pvs) - _OutlineFarStart) / max(0.01, _OutlineFarEnd - _OutlineFarStart));
                 float farScale = lerp(1.0, _OutlineFarMin, farT);
@@ -345,7 +383,7 @@ Shader "PestCo/Toon"
                 o.posCS = cs;
                 return o;
             }
-            half4 frag(V i) : SV_Target { return half4(_OutlineColor.rgb, 1); }
+            half4 frag(V i) : SV_Target { return half4(lerp(_OutlineColor.rgb, _PC_CourO.rgb, saturate(i.cw) * _PC_CourO.a), 1); }
             ENDHLSL
         }
 

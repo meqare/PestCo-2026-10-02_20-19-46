@@ -98,8 +98,8 @@ public class TruckZone : MonoBehaviour
     {
         if (!IsPlayerInside) return;
 
-        Keyboard keyboard = Keyboard.current;
-        if (keyboard != null && keyboard[_sellKey].wasPressedThisFrame)
+        Keyboard keyboard = PestCo.Truck.PestPC.IsOpen ? null : Keyboard.current; // PC açıkken tuşlar oyuna gitmesin
+        if (keyboard != null && keyboard[_sellKey].wasPressedThisFrame && !IsLookingAtCage())
         {
             SellCapturedBugs();
         }
@@ -373,6 +373,15 @@ public class TruckZone : MonoBehaviour
         _spawnedBugLogic = null;
         _cagedBugData = null;
     }
+
+    /// <summary>Oyuncu kafese bakıyorsa E kafesin (böcek bırakma) tuşudur; satış yapılmaz.</summary>
+    private bool IsLookingAtCage()
+    {
+        if (_interaction == null) _interaction = FindFirstObjectByType<PlayerInteraction>();
+        return _interaction != null && _interaction.CurrentTarget is BugCage;
+    }
+
+    private PlayerInteraction _interaction;
 
     /// <summary>Sahnedeki vakum aletini (kapalı olsa da) bulur.</summary>
     private VacuumTool FindVacuum()

@@ -1,0 +1,91 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Fridge_Body
+  m_Shader: {fileID: 4800000, guid: 38d638ac933948a4d9a2e63547911eda, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses:
+  - SRPDEFAULTUNLIT
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BrushTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailBump:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RoughMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AmbientStrength: 0.7
+    - _BrushScale: 1.5
+    - _BrushStrength: 0.1
+    - _BumpScale: 1
+    - _DetailAmt: 0
+    - _DetailBumpScale: 1
+    - _DetailNorm: 1
+    - _DetailScale: 1
+    - _GradAmount: 0
+    - _GradH: 2.6
+    - _GradStrength: 0.28
+    - _GradY0: 0
+    - _HiStrength: 0.16
+    - _LampBoost: 0.9
+    - _Metallic: 0
+    - _OutlineBias: 0
+    - _OutlineFarEnd: 10
+    - _OutlineFarMin: 1
+    - _OutlineFarStart: 3
+    - _OutlinePixels: 2.6999998
+    - _Realism: 0.3
+    - _RimStrength: 0.35
+    - _Smoothness: 0.3
+    - _Softness: 0.26
+    - _SpecSize: 0.9
+    - _SpecStrength: 0
+    - _StencilRef: 0
+    - _Threshold: 0.5
+    - _UseRoughUV: 0
+    - _WonkyOn: 1
+    m_Colors:
+    - _BaseColor: {r: 1, g: 0.945098, b: 0.8392157, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _GradBottom: {r: 0.78, g: 0.86, b: 1, a: 1}
+    - _GradTop: {r: 1.08, g: 1.05, b: 0.95, a: 1}
+    - _OutlineColor: {r: 0.04, g: 0.025, b: 0.04, a: 1}
+    - _ShadowColor: {r: 0.8901961, g: 0.7882353, b: 0.6039216, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

@@ -49,7 +49,7 @@ public class FoodShopZone : MonoBehaviour
     {
         if (!IsPlayerInside) return;
 
-        Keyboard keyboard = Keyboard.current;
+        Keyboard keyboard = PestCo.Truck.PestPC.IsOpen ? null : Keyboard.current; // PC açıkken tuşlar oyuna gitmesin
         if (keyboard != null && keyboard[_sellKey].wasPressedThisFrame)
         {
             SellAllFood();

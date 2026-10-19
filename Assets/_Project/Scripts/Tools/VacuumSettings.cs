@@ -56,6 +56,20 @@ public class VacuumSettings : ScriptableObject
     [Tooltip("Impulse kuvveti; ağır nesne daha yavaş uçar.")]
     [Min(0f)] public float throwForce = 18f;
 
+    [Header("Fare Noktası Modu (Lanetli Yük)")]
+    [Tooltip("Açıkken koni yerine fare ışınının zemini kestiği noktaya çeker; bırakınca şarj süresine göre fırlatır.")]
+    public bool pointerMode = false;
+    [Tooltip("Fare noktasının etrafında çekilecek yarıçap.")]
+    [Min(0.5f)] public float pointerRadius = 6f;
+    [Tooltip("Fare ışınının kesiştiği yatay düzlemin Y yüksekliği.")]
+    public float pointerPlaneY = 0f;
+    [Tooltip("Tutma süresi 0 iken fırlatma kuvveti.")]
+    [Min(0f)] public float minThrowForce = 4f;
+    [Tooltip("Şarj süresi dolunca fırlatma kuvveti.")]
+    [Min(0f)] public float maxThrowForce = 20f;
+    [Tooltip("Kuvvetin min'den max'a lineer çıktığı süre (sn).")]
+    [Min(0.1f)] public float maxChargeTime = 2f;
+
     [Header("Sınır (Kaybolmama)")]
     [Tooltip("Nesne bu Y'nin altına düşerse spawn noktasına döner.")]
     public float killY = -20f;

@@ -1,0 +1,116 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ff9abe8d86a52b42b3cc4237c1df3f0, type: 3}
+  m_Name: Lanetli_VacuumSettings
+  m_EditorClassIdentifier: Assembly-CSharp::VacuumSettings
+  pullButton: 0
+  throwButton: 0
+  dropKey: 21
+  maxDistance: 8
+  coneAngle: 75
+  pullForce: 60
+  distanceFalloff:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: -0.9
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0.1
+      inSlope: -0.9
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  massInfluence: 0.8
+  maxPullSpeed: 12
+  pullGraceTime: 0.15
+  disableGravityWhilePulled: 0
+  horizontalOnly: 1
+  obstacleLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  pullableLayers:
+    serializedVersion: 2
+    m_Bits: 4096
+  queryBufferSize: 64
+  maxHeldObjects: 1
+  holdOffset: {x: 0.3, y: 0, z: 1.7}
+  holdSpacing: 0.8
+  holdSnapDistance: 1
+  holdSpring: 60
+  holdDamping: 9
+  heldAngularDrag: 4
+  maxHoldSpeed: 10
+  throwForce: 18
+  pointerMode: 1
+  pointerRadius: 6
+  pointerPlaneY: 0
+  minThrowForce: 4
+  maxThrowForce: 20
+  maxChargeTime: 2
+  killY: -20
+  beamMaterial: {fileID: 2100000, guid: cb5d687a3c6eecc4e9fc817a64afac6a, type: 2}
+  beamPoints: 16
+  beamWidth: 0.06
+  beamColor:
+    serializedVersion: 2
+    key0: {r: 0.55, g: 0.85, b: 1, a: 1}
+    key1: {r: 1, g: 1, b: 1, a: 0.85}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: -1
+    m_NumColorKeys: 2
+    m_NumAlphaKeys: 2
+  beamWaveAmplitude: 0.12
+  beamWaveFrequency: 3
+  beamWaveSpeed: 8
+  maxBeams: 8
+  stretchAmount: 0.5
+  speedForMaxStretch: 10
+  squashLerpSpeed: 14
+  debugDraw: 1
+  debugConeColor: {r: 0.2, g: 0.9, b: 1, a: 0.9}
+  debugPullColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  debugHeldColor: {r: 0, g: 1, b: 0, a: 1}

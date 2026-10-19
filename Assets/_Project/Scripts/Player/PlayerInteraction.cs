@@ -65,7 +65,7 @@ public class PlayerInteraction : MonoBehaviour
 
         var keyboard = Keyboard.current;
         // Eşya tutulurken E bırakma tuşudur (GrabController); başka etkileşim tetiklenmesin.
-        if (keyboard != null && keyboard.eKey.wasPressedThisFrame && (grab == null || !grab.ConsumesInteract))
+        if (keyboard != null && !PestCo.Truck.PestPC.IsOpen && keyboard.eKey.wasPressedThisFrame && (grab == null || !grab.ConsumesInteract))
         {
             // Fresh check on press so a stale target from the last interval is never used.
             CurrentTarget = FindTarget();

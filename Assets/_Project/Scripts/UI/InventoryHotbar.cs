@@ -310,7 +310,7 @@ public class InventoryHotbar : MonoBehaviour
     /// <summary>1-9 tuşları aynı numaralı slotu seçer (Minecraft'taki gibi).</summary>
     private void HandleNumberKeys()
     {
-        Keyboard keyboard = Keyboard.current;
+        Keyboard keyboard = PestCo.Truck.PestPC.IsOpen ? null : Keyboard.current; // PC açıkken tuşlar oyuna gitmesin
         if (keyboard == null) return;
 
         for (int i = 0; i < _slots.Count && i < 9; i++)
@@ -328,6 +328,8 @@ public class InventoryHotbar : MonoBehaviour
     {
         Mouse mouse = Mouse.current;
         if (mouse == null || Cursor.lockState != CursorLockMode.Locked) return;
+        // Vakumla bir nesne tutulurken tekerlek mesafe ayarı içindir; slot değiştirmez.
+        if (PhysicsVacuumController.IsAnyHolding) return;
 
         float scroll = mouse.scroll.ReadValue().y;
         if (Mathf.Abs(scroll) < 0.01f) return;

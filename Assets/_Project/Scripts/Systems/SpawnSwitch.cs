@@ -36,7 +36,7 @@ public class SpawnSwitch : MonoBehaviour
 
     private void Update()
     {
-        var keyboard = Keyboard.current;
+        var keyboard = PestCo.Truck.PestPC.IsOpen ? null : Keyboard.current; // PC açıkken tuşlar oyuna gitmesin
         if (keyboard == null || !keyboard[toggleKey].wasPressedThisFrame) return;
 
         spawnsEnabled = !spawnsEnabled;
