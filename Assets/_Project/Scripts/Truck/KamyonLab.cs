@@ -37,6 +37,7 @@ namespace PestCo.Truck
         private float karisim;      // 0 = dışarı, 1 = tamamen içeri
         private bool kaydedildi;    // dışarının ortam ayarları saklandı mı
         private bool ozellikKapali;
+        private bool[] ozellikBaslangic; // dışarıda geri dönülecek durum: başta kapalı olan özellik açılmasın
         private bool probeCizildi;
         private Light[] isiklar;
         private bool isiklarAcik = true;
@@ -52,6 +53,12 @@ namespace PestCo.Truck
 
         private void Awake()
         {
+            if (icerdeKapat != null)
+            {
+                ozellikBaslangic = new bool[icerdeKapat.Length];
+                for (int i = 0; i < icerdeKapat.Length; i++)
+                    ozellikBaslangic[i] = icerdeKapat[i] != null && icerdeKapat[i].isActive;
+            }
             if (icKok == null) return;
             icKok.SetActive(true);
             isiklar = icKok.GetComponentsInChildren<Light>(true);
@@ -161,8 +168,9 @@ namespace PestCo.Truck
         private void OzellikleriAyarla(bool kapali)
         {
             if (ozellikKapali == kapali || icerdeKapat == null) return;
-            foreach (var f in icerdeKapat)
-                if (f != null) f.SetActive(!kapali);
+            for (int i = 0; i < icerdeKapat.Length; i++)
+                if (icerdeKapat[i] != null)
+                    icerdeKapat[i].SetActive(!kapali && (ozellikBaslangic == null || ozellikBaslangic[i]));
             ozellikKapali = kapali;
         }
 

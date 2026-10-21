@@ -18,7 +18,8 @@ Material:
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap: {}
-  disabledShaderPasses: []
+  disabledShaderPasses:
+  - SRPDEFAULTUNLIT
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -59,7 +60,7 @@ Material:
     - _DetailScale: 1
     - _GradAmount: 0
     - _GradH: 2.6
-    - _GradStrength: 0.05
+    - _GradStrength: 0.3
     - _GradY0: 0
     - _HiStrength: 0.16
     - _LampBoost: 0.9
@@ -69,18 +70,19 @@ Material:
     - _OutlineFarMin: 1
     - _OutlineFarStart: 3
     - _OutlinePixels: 0
-    - _Realism: 0.3
-    - _RimStrength: 0.35
+    - _Realism: 0.6
+    - _RimStrength: 0.2
     - _Smoothness: 0.6
     - _Softness: 0.45
-    - _SpecSize: 0.95
+    - _SpecSize: 0.93
     - _SpecStrength: 0.5
     - _StencilRef: 0
     - _Threshold: 0.5
     - _UseRoughUV: 0
+    - _UseVertexColor: 0
     - _WonkyOn: 0
     m_Colors:
-    - _BaseColor: {r: 0.37254867, g: 0.81960785, b: 0.70980394, a: 1}
+    - _BaseColor: {r: 0.21607788, g: 0.81960785, b: 0.67137253, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GradBottom: {r: 0.78, g: 0.86, b: 1, a: 1}
     - _GradTop: {r: 1.08, g: 1.05, b: 0.95, a: 1}

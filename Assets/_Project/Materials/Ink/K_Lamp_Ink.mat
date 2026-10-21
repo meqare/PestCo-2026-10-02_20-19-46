@@ -126,7 +126,7 @@ Material:
     - _GlossyReflections: 0
     - _GradAmount: 0
     - _GradH: 2.6
-    - _GradStrength: 0.05
+    - _GradStrength: 0.3
     - _GradY0: 0
     - _HiStrength: 0.16
     - _LampBoost: 0.9
@@ -139,14 +139,14 @@ Material:
     - _OutlinePixels: 0
     - _Parallax: 0.005
     - _QueueOffset: 0
-    - _Realism: 0.3
+    - _Realism: 0.6
     - _ReceiveShadows: 1
-    - _RimStrength: 0.35
-    - _Smoothness: 0.35
+    - _RimStrength: 0.2
+    - _Smoothness: 0.5
     - _SmoothnessTextureChannel: 0
     - _Softness: 0.45
-    - _SpecSize: 0.9
-    - _SpecStrength: 0
+    - _SpecSize: 0.93
+    - _SpecStrength: 0.25
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
@@ -154,12 +154,13 @@ Material:
     - _Surface: 0
     - _Threshold: 0.5
     - _UseRoughUV: 0
+    - _UseVertexColor: 0
     - _WonkyOn: 0
     - _WorkflowMode: 1
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
-    - _BaseColor: {r: 0.65999997, g: 0.93, b: 0.93, a: 1}
+    - _BaseColor: {r: 0.56549996, g: 0.93, b: 0.93, a: 1}
     - _Color: {r: 1, g: 0.8235294, b: 0.47843128, a: 1}
     - _EmissionColor: {r: 2.4, g: 2.1082354, b: 1.2988236, a: 2.4}
     - _GradBottom: {r: 0.78, g: 0.86, b: 1, a: 1}

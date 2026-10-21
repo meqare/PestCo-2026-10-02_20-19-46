@@ -46,6 +46,8 @@ Shader "PestCo/Toon"
         _DetailNorm ("Detay Albedo Normalizasyon (1/ortalama)", Float) = 1
         _UseRoughUV ("Puruzluluk UV ile (1) / dunya uzayi (0)", Range(0,1)) = 0
         _WonkyOn ("Egri Bugru Bukme (1 = uygulanir, 0 = bu materyal bukulmez)", Range(0,1)) = 1
+        // Kose rengi (Polyfork gibi doku yerine vertex color tasiyan modeller). 0 = kapali, eski materyaller etkilenmez.
+        _UseVertexColor ("Kose Rengini Kullan (1 = acik)", Range(0,1)) = 0
         [IntRange] _StencilRef ("Kalem Cizgisi Stencil (2 = cizgi cizilsin)", Range(0,255)) = 0
     }
     SubShader
@@ -70,6 +72,8 @@ Shader "PestCo/Toon"
             #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
             #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
             #pragma shader_feature_local_fragment _NORMALMAP
+            #pragma multi_compile_fragment _ _REFLECTION_PROBE_BLENDING
+            #pragma multi_compile_fragment _ _REFLECTION_PROBE_BOX_PROJECTION
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "PCWonky.hlsl"
             #include "PCNoir.hlsl"
@@ -84,10 +88,14 @@ Shader "PestCo/Toon"
             TEXTURE2D(_RoughMap); SAMPLER(sampler_RoughMap);
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor, _ShadowColor, _EmissionColor, _OutlineColor, _GradTop, _GradBottom; float4 _BaseMap_ST, _BumpMap_ST;
-                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength, _OutlineBias, _OutlineFarMin, _OutlineFarStart, _OutlineFarEnd, _GradAmount, _GradY0, _GradH, _Realism, _Smoothness, _Metallic, _DetailAmt, _DetailBumpScale, _DetailScale, _DetailNorm, _UseRoughUV, _WonkyOn;
+                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength, _OutlineBias, _OutlineFarMin, _OutlineFarStart, _OutlineFarEnd, _GradAmount, _GradY0, _GradH, _Realism, _Smoothness, _Metallic, _DetailAmt, _DetailBumpScale, _DetailScale, _DetailNorm, _UseRoughUV, _WonkyOn, _UseVertexColor;
             CBUFFER_END
             // Kuresel palet ayari (ToonPaletteGrade yazar). Atanmazsa 0 = eski gorunum.
             half4 _PC_ShadowTint; half _PC_ShadowTintAmt, _PC_YellowCut, _PC_SatBoost, _PC_BrushCut;
+            // Temiz/canli gorunum (ToonPaletteGrade yazar): golgeler gri-mavi camura donmez, renkli kalir; leke ve zemin/kose kararmasi azalir. 0 = eski.
+            half _PC_Clean;
+            // Kuresel gerceklik tabani: materyalin _Realism degeri bundan dusukse bu kullanilir (0 = eski). Uzaklik derinlik ipucu (0 = kapali).
+            half _PC_Realism, _PC_Depth;
             // Oda isigi karartmasi (RoomLightSystem yazar). _PC_RoomCount = 0 ise hicbir etkisi yok.
             float4 _PC_RoomMin[10]; float4 _PC_RoomMax[10]; float _PC_RoomDark[10]; float _PC_RoomCount; half4 _PC_DarkTint;
             half PCRoomDark(float3 p)
@@ -104,8 +112,8 @@ Shader "PestCo/Toon"
                 return d;
             }
 
-            struct A { float4 posOS : POSITION; float3 nOS : NORMAL; float4 tOS : TANGENT; float2 uv : TEXCOORD0; };
-            struct V { float4 posCS : SV_POSITION; float3 posWS : TEXCOORD0; half3 nWS : TEXCOORD1; float2 uv : TEXCOORD2; half4 tWS : TEXCOORD3; };
+            struct A { float4 posOS : POSITION; float3 nOS : NORMAL; float4 tOS : TANGENT; float2 uv : TEXCOORD0; half4 col : COLOR; };
+            struct V { float4 posCS : SV_POSITION; float3 posWS : TEXCOORD0; half3 nWS : TEXCOORD1; float2 uv : TEXCOORD2; half4 tWS : TEXCOORD3; half3 col : TEXCOORD4; };
 
             V vert(A i)
             {
@@ -115,6 +123,7 @@ Shader "PestCo/Toon"
                 o.posCS = TransformWorldToHClip(o.posWS);
                 o.uv = i.uv * _BaseMap_ST.xy + _BaseMap_ST.zw;
                 o.tWS = half4(TransformObjectToWorldDir(i.tOS.xyz), i.tOS.w * GetOddNegativeScale());
+                o.col = lerp(half3(1, 1, 1), i.col.rgb, _UseVertexColor);
                 return o;
             }
 
@@ -140,7 +149,7 @@ Shader "PestCo/Toon"
                 half b = SAMPLE_TEXTURE2D(_BrushTex, sampler_BrushTex, puv * _BrushScale).r;
                 half lf = SAMPLE_TEXTURE2D(_BrushTex, sampler_BrushTex, puv * (_BrushScale * 0.18)).r * 2.0h;
                 // fircaizi dokusu: _PC_BrushCut ile duzlestirilir (cizgi film = daha duz renk)
-                half brush = 1 + ((b - 0.5h) * 2 * _BrushStrength + (lf - 1.0h) * 0.22h) * (1.0h - _PC_BrushCut);
+                half brush = 1 + ((b - 0.5h) * 2 * _BrushStrength + (lf - 1.0h) * lerp(0.22h, 0.08h, _PC_Clean)) * (1.0h - _PC_BrushCut);
 
                 // PBR detay seti (varsayilan kapali): dunya uzayi projeksiyon; UV'den bagimsiz oldugu icin her mesh'te duzgun gorunur.
                 half3 detailTint = half3(1, 1, 1);
@@ -165,9 +174,14 @@ Shader "PestCo/Toon"
                 Light ml = GetMainLight(sc);
                 half t = Ramp(dot(n, ml.direction), ml.shadowAttenuation);
 
-                half3 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).rgb; tex *= detailTint;
+                half3 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).rgb; tex *= detailTint * i.col;
                 half3 lit = _BaseColor.rgb * tex;
-                half3 shd = _ShadowColor.rgb * tex * half3(0.82h, 0.84h, 0.95h);
+                half3 shd = _ShadowColor.rgb * tex * lerp(half3(0.82h, 0.84h, 0.95h), half3(0.95h, 0.93h, 0.98h), _PC_Clean);
+                // temiz modda golge, aydinlik rengin koyu ve doygun hali olur (gri camur yerine)
+                half3 shdClean = lit * half3(0.62h, 0.60h, 0.70h);
+                half shdL = dot(shdClean, half3(0.299h, 0.587h, 0.114h));
+                shdClean = max(lerp(shdL.xxx, shdClean, 1.25h), 0.0h);
+                shd = lerp(shd, lerp(shd, shdClean, 0.5h), _PC_Clean);
                 half3 col = lerp(shd, lit, t) * brush;
 
                 // Ek isiklar (lamba): yumusak rampa ile sicak katki
@@ -184,6 +198,33 @@ Shader "PestCo/Toon"
                 #endif
                 half lampT = saturate(dot(extra, half3(0.33h,0.33h,0.33h))) * _LampBoost;
                 half3 warm = extra / max(max(extra.r, max(extra.g, extra.b)), 1e-3h);
+                // Duz PBR modu: URP Lit ile ayni isik hesabi (ana/ek isik, golge, SSAO, ortam isigi, yansima probu).
+                // Cizgi film efektlerinin hicbiri uygulanmaz; sadece oda isigi karartmasi (oyun mekanigi) korunur.
+                if (_PC_PureLit > 0.5h)
+                {
+                    InputData pIn = (InputData)0;
+                    pIn.positionWS = i.posWS;
+                    pIn.normalWS = n;
+                    pIn.viewDirectionWS = GetWorldSpaceNormalizeViewDir(i.posWS);
+                    pIn.shadowCoord = sc;
+                    pIn.bakedGI = SampleSH(n);
+                    pIn.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(i.posCS);
+                    pIn.shadowMask = half4(1, 1, 1, 1);
+                    SurfaceData pSurf = (SurfaceData)0;
+                    pSurf.albedo = _BaseColor.rgb * tex;
+                    pSurf.metallic = _Metallic;
+                    pSurf.smoothness = _Smoothness * smoothMul;
+                    pSurf.occlusion = 1.0h;
+                    pSurf.emission = _EmissionColor.rgb;
+                    pSurf.alpha = 1.0h;
+                    pSurf.normalTS = half3(0, 0, 1);
+                    half3 pc = UniversalFragmentPBR(pIn, pSurf).rgb;
+                    half pDark = PCRoomDark(i.posWS) * (1.0h - saturate(lampT * 1.5h));
+                    half pLum = dot(pc, half3(0.299h, 0.587h, 0.114h));
+                    pc = lerp(pc, pLum.xxx, pDark * _PC_DarkTint.a);
+                    pc *= lerp(half3(1, 1, 1), _PC_DarkTint.rgb, pDark);
+                    return half4(pc, 1);
+                }
                 half tt = saturate(t + lampT * 0.9h);
                 // Noir bolgesi: isik/golge gecisi yumusak degil, buyuk piksel bloklu Bayer dither (Shadow of Doubt)
                 float nBayer = PCBayer4(i.posCS.xy / max(_PC_NoirP.x, 1.0));
@@ -194,7 +235,7 @@ Shader "PestCo/Toon"
                 half cw = PCCourZone(i.posWS);
                 if (cw > 0.001h)
                 {
-                    half soft = smoothstep(0.05h, 0.95h, dot(n, ml.direction) * 0.5h + 0.5h) * lerp(1.0h, ml.shadowAttenuation, 0.75h);
+                    half soft = smoothstep(0.05h, 0.95h, dot(n, ml.direction) * 0.5h + 0.5h) * lerp(1.0h, ml.shadowAttenuation, 0.95h);
                     tt = lerp(tt, saturate(soft + lampT * 0.9h), cw * _PC_CourS.a);
                 }
                 // gokyuzu/zemin ortam yansimasi: golge tarafi yukari bakinca soguk, asagi bakinca sicak
@@ -202,6 +243,8 @@ Shader "PestCo/Toon"
                 shd = lerp(shd, shd * amb * 1.55h, _AmbientStrength * 0.55h);
                 // golgeye mor/lacivert palet tonu
                 shd = lerp(shd, shd * _PC_ShadowTint.rgb, _PC_ShadowTintAmt);
+                // yumusak ortam dolgusu: golge tarafi tamamen sonmesin (gercekciye yakin sekil okunur)
+                shd += lit * SampleSH(n) * (0.18h * _PC_Clean);
                 col = lerp(shd, lit, tt) * brush;
                 // ucuncu parlak bant: isigin en cok vurdugu yer boyali vurgu
                 half hiT = smoothstep(_Threshold + 0.26h - _Softness, _Threshold + 0.26h + _Softness, dot(n, ml.direction) * 0.5h + 0.5h) * ml.shadowAttenuation;
@@ -211,8 +254,8 @@ Shader "PestCo/Toon"
                 half3 sunTint = ml.color / max(max(ml.color.r, max(ml.color.g, ml.color.b)), 1e-3h);
                 col *= lerp(half3(1,1,1), sunTint, 0.55h * (1.0h - _PC_YellowCut) * t);
                 // zemine dogru boyali koyulasma
-                half ao = lerp(1.0h - _GradStrength * 1.3h, 1.0h, saturate(i.posWS.y * 0.8h));
-                ao *= lerp(1.0h, 0.86h, saturate((i.posWS.y - 2.1h) * 1.6h));
+                half ao = lerp(1.0h - _GradStrength * lerp(1.3h, 0.6h, _PC_Clean), 1.0h, saturate(i.posWS.y * 0.8h));
+                ao *= lerp(1.0h, lerp(0.86h, 0.94h, _PC_Clean), saturate((i.posWS.y - 2.1h) * 1.6h));
                 col *= ao;
                 // opsiyonel renk gradyani: alt koyu/soguk -> ust acik/sicak (kontur pass'ine dokunmaz)
                 half gt = saturate((i.posWS.y - _GradY0) / max(_GradH, 0.01h));
@@ -229,9 +272,12 @@ Shader "PestCo/Toon"
                 col += sp * _SpecStrength * half3(1.0h, 0.97h, 0.88h);
                 half rim = smoothstep(0.55h, 0.85h, 1.0h - saturate(dot(n, v))) * saturate(t * 0.6h + 0.4h);
                 col += rim * _RimStrength * half3(1.0h, 0.86h, 0.55h) * 0.22h;
+                // hafif genis parlaklik: yuzeyler mat kil gibi degil, hafif cilali/plastik okunur
+                col += lit * pow(saturate(dot(n, hv)), 24.0h) * (0.14h * _PC_Clean) * t;
                 // Gerceklik (varsayilan 0 = hicbir etkisi yok): cizgi film rampasinin ustune yumusak sarmali difuz, ortam isigi (SH),
                 // Blinn-Phong/Fresnel parlama ve ortam yansimasi karistirilir; kontur ve boyali gorunum korunur.
-                if (_Realism > 0.001h)
+                half realism = max(_Realism, _PC_Realism);
+                if (realism > 0.001h)
                 {
                     half sm = _Smoothness * smoothMul;
                     half3 albedo = _BaseColor.rgb * tex * lerp(1.0h, brush, 0.5h);
@@ -252,12 +298,12 @@ Shader "PestCo/Toon"
                     real = lerp(real, real * lerp(half3(1,1,1), _PC_ShadowTint.rgb, _PC_ShadowTintAmt), saturate(1.0h - t) * 0.6h);
                     real *= ao; // zemine dogru / tavana dogru koyulasma gercekci isikta da gecerli
                     real = real / (1.0h + real * 0.12h); // yumusak tonlama: parlak alanlar patlamasin
-                    col = lerp(col, real, saturate(_Realism * 1.15h));
+                    col = lerp(col, real, saturate(realism * 1.15h));
                 }
                 // Ekran uzayi ortam golgelemesi (SSAO ozelligi aciksa): koselere, dolap altlarina temas golgesi
                 #if defined(_SCREEN_SPACE_OCCLUSION)
                     AmbientOcclusionFactor aoF = GetScreenSpaceAmbientOcclusion(GetNormalizedScreenSpaceUV(i.posCS));
-                    col *= lerp(1.0h, aoF.indirectAmbientOcclusion, 0.85h) * lerp(1.0h, aoF.directAmbientOcclusion, 0.5h);
+                    col *= lerp(1.0h, aoF.indirectAmbientOcclusion, lerp(0.85h, 0.55h, _PC_Clean)) * lerp(1.0h, aoF.directAmbientOcclusion, lerp(0.5h, 0.3h, _PC_Clean));
                 #endif
                 // Elle cizim: golgede kalem taramasi (hatching) + kagit greni. Sadece CartoonWonky bolgesinde (_PC_HatchP.x > 0).
                 if (_PC_HatchP.x > 0.001)
@@ -282,7 +328,11 @@ Shader "PestCo/Toon"
                 }
                 // cizgi film doygunlugu (0 = eski)
                 half lum = dot(col, half3(0.299h, 0.587h, 0.114h));
-                col = max(lerp(lum.xxx, col, 1.0h + _PC_SatBoost * (1.0h - 0.9h * _Realism)), 0.0h);
+                col = max(lerp(lum.xxx, col, 1.0h + _PC_SatBoost * (1.0h - 0.9h * realism)), 0.0h);
+                // canlilik (vibrance): soluk renkler daha cok, zaten doygun renkler az artar; ten/beyaz patlamaz
+                half sat = (max(col.r, max(col.g, col.b)) - min(col.r, min(col.g, col.b))) / max(max(col.r, max(col.g, col.b)), 1e-3h);
+                half lumV = dot(col, half3(0.299h, 0.587h, 0.114h));
+                col = max(lerp(lumV.xxx, col, 1.0h + 0.18h * _PC_Clean * (1.0h - sat)), 0.0h);
                 // Oda isigi kapaliysa karart; lamba/el feneri (ek isik) vuran yerler aydinlik kalir.
                 half roomDark = PCRoomDark(i.posWS) * (1.0h - saturate(lampT * 1.5h));
                 half darkLum = dot(col, half3(0.299h, 0.587h, 0.114h));
@@ -324,6 +374,13 @@ Shader "PestCo/Toon"
                     half g = PCCourHash(floor(i.posCS.xy * 0.5));
                     col *= 1.0h + (g - 0.5h) * _PC_CourP.z * cw;
                 }
+                // hava perspektifi: uzak yuzeyler hafifce kontrast/doygunluk kaybeder (sis degil; derinlik ipucu)
+                if (_PC_Depth > 0.001h)
+                {
+                    half aerial = (1.0h - exp(-dist * 0.045h)) * _PC_Depth;
+                    half lumA = dot(col, half3(0.299h, 0.587h, 0.114h));
+                    col = lerp(col, lerp(lumA.xxx, col, 0.6h) * 0.9h + half3(0.045h, 0.05h, 0.06h), aerial);
+                }
                 col += _EmissionColor.rgb;
                 return half4(col, 1);
             }
@@ -348,10 +405,11 @@ Shader "PestCo/Toon"
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor, _ShadowColor, _EmissionColor, _OutlineColor, _GradTop, _GradBottom; float4 _BaseMap_ST, _BumpMap_ST;
-                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength, _OutlineBias, _OutlineFarMin, _OutlineFarStart, _OutlineFarEnd, _GradAmount, _GradY0, _GradH, _Realism, _Smoothness, _Metallic, _DetailAmt, _DetailBumpScale, _DetailScale, _DetailNorm, _UseRoughUV, _WonkyOn;
+                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength, _OutlineBias, _OutlineFarMin, _OutlineFarStart, _OutlineFarEnd, _GradAmount, _GradY0, _GradH, _Realism, _Smoothness, _Metallic, _DetailAmt, _DetailBumpScale, _DetailScale, _DetailNorm, _UseRoughUV, _WonkyOn, _UseVertexColor;
             CBUFFER_END
 
             half _PC_OutlineCut; // kuresel kontur inceltme (0 = eski kalinlik)
+            half _PC_OutlineFar; // kuresel uzak kontur carpani: > 0 ise materyalin _OutlineFarMin'i en fazla bu olur (derinlik hissi)
 
             struct A { float4 posOS : POSITION; float3 nOS : NORMAL; };
             struct V { float4 posCS : SV_POSITION; half cw : TEXCOORD0; };
@@ -375,12 +433,13 @@ Shader "PestCo/Toon"
                 wobble = lerp(wobble, _PC_CourP.w * (1.0 + 0.45 * sin(dot(pw, float3(11.3, 8.1, 9.7))) + 0.2 * sin(dot(pw, float3(31.0, 27.0, 23.0)))), saturate(cwo));
                 // Uzaklastikca kontur incelir (ekranda sabit piksel olursa kucuk nesne siyah leke gorunur).
                 float farT = saturate((length(pvs) - _OutlineFarStart) / max(0.01, _OutlineFarEnd - _OutlineFarStart));
-                float farScale = lerp(1.0, _OutlineFarMin, farT);
+                float farMin = _PC_OutlineFar > 0.001 ? min(_OutlineFarMin, _PC_OutlineFar) : _OutlineFarMin;
+                float farScale = lerp(1.0, farMin, farT);
                 // Noir bolgesinde kontur silinir (Shadow of Doubt konturlu degil)
                 float noirCut = 1.0 - saturate(PCNoirZone(pw) * 1.5) * _PC_NoirT.a;
                 float2 px = nCS * (_OutlinePixels * (1.0 - _PC_OutlineCut) * wobble * farScale * noirCut * 2.0) / _ScreenParams.xy;
                 cs.xy += px * cs.w;
-                o.posCS = cs;
+                o.posCS = _PC_PureLit > 0.5h ? float4(2, 2, 2, 1) : cs; // duz PBR modunda kontur yok (kirpma disina atilir)
                 return o;
             }
             half4 frag(V i) : SV_Target { return half4(lerp(_OutlineColor.rgb, _PC_CourO.rgb, saturate(i.cw) * _PC_CourO.a), 1); }
@@ -402,7 +461,7 @@ Shader "PestCo/Toon"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor, _ShadowColor, _EmissionColor, _OutlineColor, _GradTop, _GradBottom; float4 _BaseMap_ST, _BumpMap_ST;
-                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength, _OutlineBias, _OutlineFarMin, _OutlineFarStart, _OutlineFarEnd, _GradAmount, _GradY0, _GradH, _Realism, _Smoothness, _Metallic, _DetailAmt, _DetailBumpScale, _DetailScale, _DetailNorm, _UseRoughUV, _WonkyOn;
+                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength, _OutlineBias, _OutlineFarMin, _OutlineFarStart, _OutlineFarEnd, _GradAmount, _GradY0, _GradH, _Realism, _Smoothness, _Metallic, _DetailAmt, _DetailBumpScale, _DetailScale, _DetailNorm, _UseRoughUV, _WonkyOn, _UseVertexColor;
             CBUFFER_END
             float3 _LightDirection; float3 _LightPosition;
             struct A { float4 posOS : POSITION; float3 nOS : NORMAL; };
@@ -442,7 +501,7 @@ Shader "PestCo/Toon"
             #include "PCWonky.hlsl"
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor, _ShadowColor, _EmissionColor, _OutlineColor, _GradTop, _GradBottom; float4 _BaseMap_ST, _BumpMap_ST;
-                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength, _OutlineBias, _OutlineFarMin, _OutlineFarStart, _OutlineFarEnd, _GradAmount, _GradY0, _GradH, _Realism, _Smoothness, _Metallic, _DetailAmt, _DetailBumpScale, _DetailScale, _DetailNorm, _UseRoughUV, _WonkyOn;
+                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength, _OutlineBias, _OutlineFarMin, _OutlineFarStart, _OutlineFarEnd, _GradAmount, _GradY0, _GradH, _Realism, _Smoothness, _Metallic, _DetailAmt, _DetailBumpScale, _DetailScale, _DetailNorm, _UseRoughUV, _WonkyOn, _UseVertexColor;
             CBUFFER_END
             struct A { float4 posOS : POSITION; };
             struct V { float4 posCS : SV_POSITION; };
@@ -464,7 +523,7 @@ Shader "PestCo/Toon"
             #include "PCWonky.hlsl"
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor, _ShadowColor, _EmissionColor, _OutlineColor, _GradTop, _GradBottom; float4 _BaseMap_ST, _BumpMap_ST;
-                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength, _OutlineBias, _OutlineFarMin, _OutlineFarStart, _OutlineFarEnd, _GradAmount, _GradY0, _GradH, _Realism, _Smoothness, _Metallic, _DetailAmt, _DetailBumpScale, _DetailScale, _DetailNorm, _UseRoughUV, _WonkyOn;
+                half _Threshold, _Softness, _BrushScale, _BrushStrength, _LampBoost, _OutlinePixels, _SpecStrength, _SpecSize, _RimStrength, _GradStrength, _BumpScale, _HiStrength, _AmbientStrength, _OutlineBias, _OutlineFarMin, _OutlineFarStart, _OutlineFarEnd, _GradAmount, _GradY0, _GradH, _Realism, _Smoothness, _Metallic, _DetailAmt, _DetailBumpScale, _DetailScale, _DetailNorm, _UseRoughUV, _WonkyOn, _UseVertexColor;
             CBUFFER_END
             struct A { float4 posOS : POSITION; float3 nOS : NORMAL; };
             struct V { float4 posCS : SV_POSITION; half3 n : TEXCOORD0; };

@@ -7,6 +7,7 @@ float4 _PC_WonkyC; // xyz: bolge merkezi, w: bukme miktari (0 = kapali)
 float4 _PC_WonkyE; // xyz: bolge yari boyutlari, w: yumusak kenar (m)
 float4 _PC_WonkyP; // x: cizgi titremesi (m), y: titreme fps
 float4 _PC_HatchP; // x: tarama (hatching) siddeti, y: cizgi aralik (px), z: kagit greni, w: aydinlik dolgu tarama
+half _PC_PureLit;  // 1 = duz PBR (URP Lit isigi): bukme, kontur ve tum cizgi film efektleri kapanir (ToonPaletteGrade yazar)
 
 float PCZone(float3 pw)
 {
@@ -17,7 +18,7 @@ float PCZone(float3 pw)
 
 float3 PCWonk(float3 pw, half on)
 {
-    if (_PC_WonkyC.w <= 0.0 || on < 0.5h) return pw;
+    if (_PC_WonkyC.w <= 0.0 || on < 0.5h || _PC_PureLit > 0.5h) return pw;
     float3 q = abs(pw - _PC_WonkyC.xyz) - _PC_WonkyE.xyz;
     float zone = 1.0 - smoothstep(0.0, max(_PC_WonkyE.w, 0.01), max(q.x, max(q.y, q.z)));
     if (zone <= 0.0) return pw;

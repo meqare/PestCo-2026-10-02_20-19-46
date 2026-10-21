@@ -31,7 +31,7 @@ Material:
     - _FarWidthEnd: 45
     - _NoiseGrow: 0.1
     - _ShadeRadius: 4
-    - _ShadeStrength: 0.3
+    - _ShadeStrength: 0.12
     - _Threshold: 0.0022
     - _Width: 1.3
     m_Colors:
