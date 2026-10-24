@@ -9,16 +9,18 @@ public class OrderHUD : MonoBehaviour
 {
     [Tooltip("Boşsa OrderManager.Instance kullanılır.")]
     [SerializeField] private OrderManager orderManager;
-    [SerializeField] private Vector2 cardSize = new Vector2(360f, 210f);
+    [SerializeField] private Vector2 cardSize = new Vector2(380f, 146f);
     [Tooltip("Kartın ekranın sol kenarından ve üstünden uzaklığı.")]
-    [SerializeField] private Vector2 cardOffset = new Vector2(20f, -110f);
+    [SerializeField] private Vector2 cardOffset = new Vector2(24f, -132f);
     [Min(0.5f)] [SerializeField] private float messageDuration = 3f;
 
     [Header("Renkler (retro çizgi film)")]
     [SerializeField] private Color inkColor = new Color(0.16f, 0.09f, 0.10f, 1f);
-    [SerializeField] private Color paperColor = new Color(1f, 0.95f, 0.80f, 0.96f);
+    [SerializeField] private Color paperColor = new Color(0.96f, 0.91f, 0.78f, 1f);
+    [SerializeField] private Color headerColor = new Color(0.45f, 0.32f, 0.55f, 1f);
     [SerializeField] private Color successColor = new Color(0.10f, 0.55f, 0.25f, 1f);
     [SerializeField] private Color failColor = new Color(0.80f, 0.15f, 0.15f, 1f);
+    [SerializeField] private Color waitColor = new Color(0.71f, 0.46f, 0.1f, 1f);
 
     private TextMeshProUGUI titleText;
     private TextMeshProUGUI bodyText;
@@ -87,27 +89,25 @@ public class OrderHUD : MonoBehaviour
 
         if (m == null)
         {
-            titleText.text = "SİPARİŞ";
+            titleText.text = "-";
             bodyText.text = "Sahnede OrderManager yok.";
             return;
         }
 
         var o = m.ActiveOrder;
-        titleText.text = "SİPARİŞ: " + o.title.ToUpperInvariant();
+        titleText.text = o.title;
         string status = m.IsCompleted
-            ? $"<color=#{ColorUtility.ToHtmlStringRGB(successColor)}>TAMAMLANDI</color>"
-            : "Bekliyor";
-        string earned = m.IsCompleted ? $"{m.EarnedReward}$" : $"0$ (ödül {o.reward}$)";
+            ? $"<color=#{ColorUtility.ToHtmlStringRGB(successColor)}><b>TAMAMLANDI</b></color>"
+            : $"<color=#{ColorUtility.ToHtmlStringRGB(waitColor)}><b>BEKLİYOR</b></color>";
+        string earned = m.IsCompleted ? $"Kazanılan <b>{m.EarnedReward}$</b>" : $"Ödül <b>{o.reward}$</b>";
+        string dim = ColorUtility.ToHtmlStringRGB(PestHudTema.Soluk);
         bodyText.text =
-            $"{o.description}\n" +
-            $"• Ağırlık > {o.minWeight:0.0} kg\n" +
-            $"• Isı > {o.minHeat:0}\n" +
-            $"• Ses < {o.maxSound:0}\n" +
-            $"Durum: {status}   Kazanılan: {earned}\n" +
-            $"Para: ${money:0}";
+            $"<color=#{dim}>{o.description}</color>\n" +
+            $"<b>Ağırlık</b> > {o.minWeight:0.0} kg   <b>Isı</b> > {o.minHeat:0}   <b>Ses</b> < {o.maxSound:0}\n" +
+            $"{status}   <color=#{dim}>·</color>   {earned}";
     }
 
-    // Kart: koyu "mürekkep" kenarlık + krem kağıt zemin + metinler.
+    // Kart: PestHudTema paneli (sert gölge + mürekkep kontur + krem kağıt), mor başlık şeridi, altında metinler.
     private void BuildCard()
     {
         var rt = (RectTransform)transform;
@@ -116,27 +116,36 @@ public class OrderHUD : MonoBehaviour
         rt.anchoredPosition = cardOffset;
         rt.sizeDelta = cardSize;
 
-        var border = gameObject.GetComponent<Image>();
-        if (border == null) border = gameObject.AddComponent<Image>();
-        border.color = inkColor;
-        border.raycastTarget = false;
+        // Eski sürümden sahnede kalan düz kenarlık görünmesin.
+        var old = gameObject.GetComponent<Image>();
+        if (old != null) old.enabled = false;
 
-        var paper = NewChild("Paper", transform);
-        Stretch(paper, 4f);
-        var paperImg = paper.gameObject.AddComponent<Image>();
-        paperImg.color = paperColor;
-        paperImg.raycastTarget = false;
+        var panel = PestHudTema.YeniPanel("Card", transform, paperColor);
+        PestHudTema.Doldur(panel.kok);
+        var paper = panel.Icerik;
 
-        titleText = NewText("Title", paper, 20, FontStyles.Bold);
-        Place(titleText.rectTransform, 12f, 8f, 28f);
+        var strip = PestHudTema.BaslikSeridi(panel, headerColor, HeaderHeight);
+        var tag = PestHudTema.Yazi("Tag", strip, 14f, PestHudTema.Krem, TextAlignmentOptions.Left);
+        tag.fontStyle = FontStyles.Bold;
+        tag.characterSpacing = 8f;
+        tag.text = "SİPARİŞ";
+        Place(tag.rectTransform, 14f, 0f, HeaderHeight);
 
-        bodyText = NewText("Body", paper, 15, FontStyles.Normal);
-        Place(bodyText.rectTransform, 12f, 38f, 132f);
+        titleText = PestHudTema.Yazi("Title", strip, 22f, PestHudTema.Krem, TextAlignmentOptions.Right);
+        PestHudTema.KonturluYazi(titleText, 22f, PestHudTema.Krem, 0.2f);
+        Place(titleText.rectTransform, 14f, 0f, HeaderHeight);
 
-        messageText = NewText("Message", paper, 15, FontStyles.Bold);
-        Place(messageText.rectTransform, 12f, 168f, 34f);
+        bodyText = NewText("Body", paper, 17, FontStyles.Normal);
+        bodyText.lineSpacing = 6f;
+        Place(bodyText.rectTransform, 16f, HeaderHeight + 10f, 90f);
+
+        messageText = PestHudTema.Yazi("Message", paper, 18f, inkColor, TextAlignmentOptions.BottomLeft);
+        messageText.textWrappingMode = TextWrappingModes.Normal;
+        Place(messageText.rectTransform, 16f, cardSize.y - 46f, 34f);
         messageText.enabled = false;
     }
+
+    private const float HeaderHeight = 38f;
 
     private TextMeshProUGUI NewText(string name, Transform parent, float size, FontStyles style)
     {

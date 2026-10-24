@@ -24,6 +24,8 @@ namespace PestCo.Truck
         [SerializeField] private Vector3 icBoyut = new Vector3(3.1f, 2.56f, 7f);
         [Tooltip("İç hacmin her yönde bu kadar dışına gelince lab içeriği açılır (metre).")]
         [SerializeField] private float yakinlikPayi = 6f;
+        [Tooltip("İç hacmin bu kadar dışından uzaktaysa lab içeriği hiç çizilmez (sadece Renderer kapanır, collider'lar kalır).")]
+        [SerializeField] private float cizimPayi = 10f;
 
         [Header("İçerideyken ortam")]
         [SerializeField] private Color icAmbient = new Color(0.055f, 0.078f, 0.09f);
@@ -41,6 +43,9 @@ namespace PestCo.Truck
         private bool probeCizildi;
         private Light[] isiklar;
         private bool isiklarAcik = true;
+        private Renderer[] cizimler;
+        private bool[] cizimBaslangic;
+        private bool cizimAcik = true;
 
         // Dışarının ortam ayarları (geri yüklemek için)
         private AmbientMode eskiMod;
@@ -63,6 +68,22 @@ namespace PestCo.Truck
             icKok.SetActive(true);
             isiklar = icKok.GetComponentsInChildren<Light>(true);
             IsiklariAyarla(false);
+            cizimler = icKok.GetComponentsInChildren<Renderer>(true);
+            cizimBaslangic = new bool[cizimler.Length];
+        }
+
+        // Uzaktayken lab objeleri çizilmesin (pencereden/kapıdan görünse bile ışıklar kapalı, içerisi karanlık).
+        // Sadece Renderer.enabled değişir: fizik, collider ve böcekler etkilenmez. Kapatırken kapalı olan renderer geri açılmaz.
+        private void CizimiAyarla(bool acik)
+        {
+            if (cizimAcik == acik || cizimler == null) return;
+            for (int i = 0; i < cizimler.Length; i++)
+            {
+                if (cizimler[i] == null) continue;
+                if (!acik) cizimBaslangic[i] = cizimler[i].enabled; // kapatmadan önceki durumu sakla (başka script kapatmış olabilir)
+                cizimler[i].enabled = acik && cizimBaslangic[i];
+            }
+            cizimAcik = acik;
         }
 
         private void IsiklariAyarla(bool acik)
@@ -78,6 +99,7 @@ namespace PestCo.Truck
         {
             karisim = 0f;
             GeriYukle();
+            CizimiAyarla(true);
         }
 
         private void Update()
@@ -92,6 +114,8 @@ namespace PestCo.Truck
                          && Mathf.Abs(yerel.z) <= yari.z + yakinlikPayi;
 
             IsiklariAyarla(yakin);
+            CizimiAyarla(Mathf.Abs(yerel.x) <= yari.x + cizimPayi && Mathf.Abs(yerel.y) <= yari.y + cizimPayi
+                         && Mathf.Abs(yerel.z) <= yari.z + cizimPayi);
 
             karisim = Mathf.MoveTowards(karisim, Icerde ? 1f : 0f, gecisHizi * Time.deltaTime);
             OrtamiUygula();

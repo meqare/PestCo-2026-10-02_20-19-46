@@ -140,6 +140,36 @@ Shader "PestCo/Toon"
                     half3 bWS = cross(n, i.tWS.xyz) * i.tWS.w;
                     n = normalize(tn.x * i.tWS.xyz + tn.y * bWS + tn.z * n);
                 #endif
+                // Duz PBR modu: URP Lit ile ayni isik hesabi (ana/ek isik, golge, SSAO, ortam isigi, yansima probu).
+                // Cizgi film efektlerinin hicbiri uygulanmaz; sadece oda isigi karartmasi (oyun mekanigi) korunur.
+                // Kasitli olarak EN BASTA: fircaizi dokusu, eski toon isik dongusu ve gunes golgesi ornekleme calismaz
+                // (once sonra calisirsa isiklar/golgeler iki kez hesaplanir ve GPU maliyeti ikiye katlanir).
+                if (_PC_PureLit > 0.5h)
+                {
+                    half rghP = (_UseRoughUV > 0.5h) ? SAMPLE_TEXTURE2D(_RoughMap, sampler_RoughMap, i.uv * _BumpMap_ST.xy + _BumpMap_ST.zw).r : 0.5h;
+                    InputData pIn = (InputData)0;
+                    pIn.positionWS = i.posWS;
+                    pIn.normalWS = n;
+                    pIn.viewDirectionWS = GetWorldSpaceNormalizeViewDir(i.posWS);
+                    pIn.shadowCoord = TransformWorldToShadowCoord(i.posWS);
+                    pIn.bakedGI = SampleSH(n);
+                    pIn.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(i.posCS);
+                    pIn.shadowMask = half4(1, 1, 1, 1);
+                    SurfaceData pSurf = (SurfaceData)0;
+                    pSurf.albedo = _BaseColor.rgb * SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).rgb * i.col;
+                    pSurf.metallic = _Metallic;
+                    pSurf.smoothness = _Smoothness * saturate((1.0h - rghP) * 2.0h);
+                    pSurf.occlusion = 1.0h;
+                    pSurf.emission = _EmissionColor.rgb;
+                    pSurf.alpha = 1.0h;
+                    pSurf.normalTS = half3(0, 0, 1);
+                    half3 pc = UniversalFragmentPBR(pIn, pSurf).rgb;
+                    half pDark = PCRoomDark(i.posWS);
+                    half pLum = dot(pc, half3(0.299h, 0.587h, 0.114h));
+                    pc = lerp(pc, pLum.xxx, pDark * _PC_DarkTint.a);
+                    pc *= lerp(half3(1, 1, 1), _PC_DarkTint.rgb, pDark);
+                    return half4(pc, 1);
+                }
                 // UV'den bagimsiz fircaizi: baskin eksen duzlemi (2 doku okuma; eski 3 eksenli karisim 5 okuma yapiyordu)
                 half3 an = abs(n);
                 float2 puv = (an.x >= an.y && an.x >= an.z) ? i.posWS.zy : (an.y >= an.z ? i.posWS.xz : i.posWS.xy);
@@ -198,33 +228,6 @@ Shader "PestCo/Toon"
                 #endif
                 half lampT = saturate(dot(extra, half3(0.33h,0.33h,0.33h))) * _LampBoost;
                 half3 warm = extra / max(max(extra.r, max(extra.g, extra.b)), 1e-3h);
-                // Duz PBR modu: URP Lit ile ayni isik hesabi (ana/ek isik, golge, SSAO, ortam isigi, yansima probu).
-                // Cizgi film efektlerinin hicbiri uygulanmaz; sadece oda isigi karartmasi (oyun mekanigi) korunur.
-                if (_PC_PureLit > 0.5h)
-                {
-                    InputData pIn = (InputData)0;
-                    pIn.positionWS = i.posWS;
-                    pIn.normalWS = n;
-                    pIn.viewDirectionWS = GetWorldSpaceNormalizeViewDir(i.posWS);
-                    pIn.shadowCoord = sc;
-                    pIn.bakedGI = SampleSH(n);
-                    pIn.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(i.posCS);
-                    pIn.shadowMask = half4(1, 1, 1, 1);
-                    SurfaceData pSurf = (SurfaceData)0;
-                    pSurf.albedo = _BaseColor.rgb * tex;
-                    pSurf.metallic = _Metallic;
-                    pSurf.smoothness = _Smoothness * smoothMul;
-                    pSurf.occlusion = 1.0h;
-                    pSurf.emission = _EmissionColor.rgb;
-                    pSurf.alpha = 1.0h;
-                    pSurf.normalTS = half3(0, 0, 1);
-                    half3 pc = UniversalFragmentPBR(pIn, pSurf).rgb;
-                    half pDark = PCRoomDark(i.posWS) * (1.0h - saturate(lampT * 1.5h));
-                    half pLum = dot(pc, half3(0.299h, 0.587h, 0.114h));
-                    pc = lerp(pc, pLum.xxx, pDark * _PC_DarkTint.a);
-                    pc *= lerp(half3(1, 1, 1), _PC_DarkTint.rgb, pDark);
-                    return half4(pc, 1);
-                }
                 half tt = saturate(t + lampT * 0.9h);
                 // Noir bolgesi: isik/golge gecisi yumusak degil, buyuk piksel bloklu Bayer dither (Shadow of Doubt)
                 float nBayer = PCBayer4(i.posCS.xy / max(_PC_NoirP.x, 1.0));

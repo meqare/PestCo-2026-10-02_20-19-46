@@ -7,10 +7,11 @@ public class RoomLight : MonoBehaviour
 {
     public static readonly List<RoomLight> All = new List<RoomLight>();
 
-    // LightCuller kapalı ışıkları yeniden açmasın diye burada tutulur.
-    private static readonly HashSet<Light> switchedOff = new HashSet<Light>();
+    // Oda ışıklarının sahibi. Açık/kapalı durumu sahibi oda belirler; LightCuller yalnızca
+    // kapalı odanın ışığını kapalı tutar, açık odanın ışığını duvar arkası kontrolüyle kesmez.
+    private static readonly Dictionary<Light, RoomLight> owners = new Dictionary<Light, RoomLight>();
 
-    public static bool IsSwitchedOff(Light l) => switchedOff.Contains(l);
+    public static RoomLight OwnerOf(Light l) => l != null && owners.TryGetValue(l, out var r) ? r : null;
 
     [SerializeField] private string roomName = "Oda";
     [Tooltip("Odanın dünya sınırı (zemin boyutu, yükseklik dahil).")]
@@ -33,7 +34,7 @@ public class RoomLight : MonoBehaviour
     private static void ResetStatics()
     {
         All.Clear();
-        switchedOff.Clear();
+        owners.Clear();
     }
 
     private void Awake()
@@ -70,8 +71,7 @@ public class RoomLight : MonoBehaviour
             {
                 if (l == null) continue;
                 l.enabled = IsOn;
-                if (IsOn) switchedOff.Remove(l);
-                else switchedOff.Add(l);
+                owners[l] = this;
             }
         }
         if (extraObjects != null)

@@ -49,6 +49,13 @@ public class ToolGauge : MonoBehaviour
             _icon.sprite = _toolData != null && _toolData.icon != null ? _toolData.icon : CartoonIcons.Tool(_toolId);
     }
 
+    /// <summary>Tema renklerini verir (dolum ve uyarı).</summary>
+    public void SetColors(Color fill, Color low)
+    {
+        _fillColor = fill;
+        _lowColor = low;
+    }
+
     private void Start()
     {
         _toolHolder = FindFirstObjectByType<ToolHolder>(FindObjectsInactive.Include);

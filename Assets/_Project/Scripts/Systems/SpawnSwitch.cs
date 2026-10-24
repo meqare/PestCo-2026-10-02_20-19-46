@@ -12,15 +12,23 @@ public class SpawnSwitch : MonoBehaviour
     [SerializeField] private bool spawnsEnabled = false;
     [SerializeField] private Key toggleKey = Key.F10;
 
+    [Header("Mutfak hamamböcekleri (sahnedeki HouseRoaches)")]
+    [SerializeField] private bool houseRoachesEnabled = true;
+    [SerializeField] private Key roachToggleKey = Key.F8;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
         Enabled = true;
     }
 
+    private GameObject houseRoaches;
+
     private void Awake()
     {
         Enabled = spawnsEnabled;
+        houseRoaches = GameObject.Find("HouseRoaches"); // pasif olunca bulunamaz; o yüzden burada önbelleğe alınır
+        ApplyHouseRoaches();
     }
 
     private void OnDestroy()
@@ -31,13 +39,31 @@ public class SpawnSwitch : MonoBehaviour
     private void OnValidate()
     {
         if (Application.isPlaying)
+        {
             Enabled = spawnsEnabled;
+            ApplyHouseRoaches();
+        }
+    }
+
+    private void ApplyHouseRoaches()
+    {
+        if (houseRoaches != null)
+            houseRoaches.SetActive(houseRoachesEnabled);
     }
 
     private void Update()
     {
         var keyboard = PestCo.Truck.PestPC.IsOpen ? null : Keyboard.current; // PC açıkken tuşlar oyuna gitmesin
-        if (keyboard == null || !keyboard[toggleKey].wasPressedThisFrame) return;
+        if (keyboard == null) return;
+
+        if (keyboard[roachToggleKey].wasPressedThisFrame)
+        {
+            houseRoachesEnabled = !houseRoachesEnabled;
+            ApplyHouseRoaches();
+            Debug.Log("[ROACH] Mutfak hamamböcekleri " + (houseRoachesEnabled ? "açıldı" : "kapatıldı"));
+        }
+
+        if (!keyboard[toggleKey].wasPressedThisFrame) return;
 
         spawnsEnabled = !spawnsEnabled;
         Enabled = spawnsEnabled;

@@ -25,7 +25,8 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
-  m_InvalidKeywords: []
+  m_InvalidKeywords:
+  - _EMISSION
   m_LightmapFlags: 0
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -155,7 +156,7 @@ Material:
     - _Realism: 0.6
     - _ReceiveShadows: 1
     - _RimStrength: 0.2
-    - _Smoothness: 0.5
+    - _Smoothness: 0.2
     - _SmoothnessTextureChannel: 0
     - _Softness: 0.18
     - _SpecSize: 0.93
@@ -173,7 +174,7 @@ Material:
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
-    - _BaseColor: {r: 0.94, g: 0.7538183, b: 0.43967438, a: 1}
+    - _BaseColor: {r: 1, g: 0.85, b: 0.6, a: 1}
     - _Color: {r: 1, g: 0.85, b: 0.6, a: 1}
     - _EmissionColor: {r: 2.5, g: 2.125, b: 1.5, a: 2.5}
     - _GradBottom: {r: 0.78, g: 0.86, b: 1, a: 1}

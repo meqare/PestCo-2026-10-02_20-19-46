@@ -1,5 +1,7 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 // Vakumun özellik haznesi: T ile mod (Ağırlık/Isı/Ses) seçilir, fare orta tuşu ile bakılan nesneden özellik çekilir
 // veya haznedeki özellik bakılan nesneye aktarılır. Hazne tek bir özellik türü tutar; değerler KitchenObjectProperties'te.
@@ -54,7 +56,6 @@ public class VacuumPropertyTank : MonoBehaviour
     private float tankAmount;
     private string message;
     private float messageUntil;
-    private GUIStyle labelStyle;
 
     private void Awake()
     {
@@ -150,23 +151,112 @@ public class VacuumPropertyTank : MonoBehaviour
         messageUntil = Time.unscaledTime + messageDuration;
     }
 
-    // Basit ekran yazısı: seçili mod, hazne durumu ve son mesaj (sol alt).
-    private void OnGUI()
+    // ------------------------------------------------------------------ EKRAN KARTI
+    // Sol altta PestHudTema kartı: mor başlık şeridinde seçili mod, altında hazne doluluk çubuğu ve kısa ipucu,
+    // kartın üstünde son mesaj. Vakum eldeyken görünür (bileşen Tool_2 ile açılıp kapanır).
+
+    private RectTransform hudRoot;
+    private TMP_Text hudMode, hudTank, hudMessage;
+    private Image hudFill;
+    private PestHudTema.Panel hudMessagePlate;
+    private string shownMode, shownTank, shownMessage;
+    private float shownFill = -1f;
+
+    private void OnEnable()
     {
         if (!showHud) return;
-        if (labelStyle == null)
-        {
-            labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
-            labelStyle.normal.textColor = Color.white;
-        }
-        float x = 20f;
-        float y = Screen.height - 110f;
+        if (hudRoot == null) BuildHud();
+        if (hudRoot != null) hudRoot.gameObject.SetActive(true);
+    }
+
+    private void OnDisable()
+    {
+        if (hudRoot != null) hudRoot.gameObject.SetActive(false);
+    }
+
+    private void OnDestroy()
+    {
+        if (hudRoot != null) Destroy(hudRoot.gameObject);
+    }
+
+    private void LateUpdate()
+    {
+        if (hudRoot == null) return;
+
+        string mode = $"<color=#{ColorUtility.ToHtmlStringRGB(PestHudTema.Hardal)}>[T]</color>  {NameOf(Mode)}";
+        if (mode != shownMode) { shownMode = mode; hudMode.text = mode; }
+
         string tank = TankHasItem
-            ? $"Hazne: {NameOf(tankKind)} {tankAmount:0.0}/{CapacityOf(tankKind):0.0}"
-            : "Hazne: boş";
-        GUI.Label(new Rect(x, y, 420, 24), $"Mod: {NameOf(Mode)}  (T ile değiştir)", labelStyle);
-        GUI.Label(new Rect(x, y + 26, 420, 24), tank + "  (orta tık: çek / aktar)", labelStyle);
-        if (Time.unscaledTime < messageUntil)
-            GUI.Label(new Rect(x, y + 52, 600, 24), message, labelStyle);
+            ? $"{NameOf(tankKind)}  <b>{tankAmount:0.0}</b> / {CapacityOf(tankKind):0.0}"
+            : "Hazne boş";
+        if (tank != shownTank) { shownTank = tank; hudTank.text = tank; }
+
+        float fill = TankHasItem ? Mathf.Clamp01(tankAmount / CapacityOf(tankKind)) : 0f;
+        if (!Mathf.Approximately(fill, shownFill))
+        {
+            shownFill = fill;
+            hudFill.fillAmount = fill;
+            hudFill.color = KindColor(tankKind);
+        }
+
+        string msg = Time.unscaledTime < messageUntil ? message : string.Empty;
+        if (msg != shownMessage)
+        {
+            shownMessage = msg;
+            bool show = !string.IsNullOrEmpty(msg);
+            hudMessagePlate.kok.gameObject.SetActive(show);
+            if (show)
+            {
+                hudMessage.text = msg;
+                hudMessagePlate.kok.sizeDelta = new Vector2(hudMessage.GetPreferredValues(msg).x + 32f, 36f);
+            }
+        }
+    }
+
+    private static Color KindColor(PropertyKind k) =>
+        k == PropertyKind.Weight ? PestHudTema.Soluk : k == PropertyKind.Heat ? PestHudTema.Turuncu : PestHudTema.Turkuaz;
+
+    private void BuildHud()
+    {
+        var canvas = FindFirstObjectByType<Canvas>();
+        if (canvas == null) return;
+
+        hudRoot = PestHudTema.Bos("VacuumTankCard", canvas.transform);
+        PestHudTema.Yerlestir(hudRoot, Vector2.zero, Vector2.zero, new Vector2(24f, 24f), new Vector2(330f, 120f));
+
+        var card = PestHudTema.PanelKur(hudRoot, PestHudTema.Kagit);
+        var strip = PestHudTema.BaslikSeridi(card, PestHudTema.Mor, 34f);
+
+        var tag = PestHudTema.Yazi("Tag", strip, 14f, PestHudTema.Krem, TextAlignmentOptions.Left);
+        tag.fontStyle = FontStyles.Bold;
+        tag.characterSpacing = 8f;
+        tag.text = "HAZNE";
+        PestHudTema.Doldur(tag.rectTransform);
+        tag.rectTransform.offsetMin = new Vector2(14f, 0f);
+
+        hudMode = PestHudTema.Yazi("Mode", strip, 20f, PestHudTema.Krem, TextAlignmentOptions.Right);
+        PestHudTema.Doldur(hudMode.rectTransform);
+        hudMode.rectTransform.offsetMax = new Vector2(-14f, 0f);
+
+        hudTank = PestHudTema.Yazi("Tank", card.Icerik, 20f, PestHudTema.Murekkep, TextAlignmentOptions.Left);
+        PestHudTema.Yerlestir(hudTank.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -40f), new Vector2(296f, 26f));
+
+        var track = PestHudTema.Resim("Track", card.Icerik, PestHudTema.Yuvarlak(8), PestHudTema.Murekkep);
+        PestHudTema.Yerlestir(track.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -70f), new Vector2(296f, 14f));
+        hudFill = PestHudTema.Resim("Fill", track.rectTransform, null, PestHudTema.Soluk);
+        PestHudTema.Doldur(hudFill.rectTransform, 2.5f);
+        hudFill.type = Image.Type.Filled;
+        hudFill.fillMethod = Image.FillMethod.Horizontal;
+        hudFill.fillAmount = 0f;
+
+        var hint = PestHudTema.Yazi("Hint", card.Icerik, 13f, PestHudTema.Soluk, TextAlignmentOptions.Left);
+        hint.text = "Orta tık: bakılan nesneden çek / aktar";
+        PestHudTema.Yerlestir(hint.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -88f), new Vector2(296f, 16f));
+
+        hudMessagePlate = PestHudTema.YeniPanel("Message", hudRoot, PestHudTema.Krem, 3f, 4f, 12);
+        PestHudTema.Yerlestir(hudMessagePlate.kok, new Vector2(0f, 1f), Vector2.zero, new Vector2(0f, 12f), new Vector2(200f, 36f));
+        hudMessage = PestHudTema.Yazi("Text", hudMessagePlate.Icerik, 18f, PestHudTema.Murekkep, TextAlignmentOptions.Center);
+        PestHudTema.Doldur(hudMessage.rectTransform);
+        hudMessagePlate.kok.gameObject.SetActive(false);
     }
 }

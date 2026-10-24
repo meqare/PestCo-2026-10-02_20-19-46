@@ -87,6 +87,15 @@ public class JuicyCounter : MonoBehaviour
         RefreshText(true);
     }
 
+    // Tema renklerini verir (ör: kağıt panel üstünde mürekkep yazı).
+    public void SetColors(Color normal, Color increase, Color decrease)
+    {
+        normalColor = normal;
+        increaseColor = increase;
+        decreaseColor = decrease;
+        if (text != null && colorTimer < 0f) text.color = normalColor;
+    }
+
     // Sadece maksimumu değiştirir.
     public void SetMax(int newMax)
     {

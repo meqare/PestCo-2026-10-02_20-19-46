@@ -155,7 +155,7 @@ Material:
     - _Realism: 0.6
     - _ReceiveShadows: 1
     - _RimStrength: 0.2
-    - _Smoothness: 0.5
+    - _Smoothness: 0.3
     - _SmoothnessTextureChannel: 0
     - _Softness: 0.18
     - _SpecSize: 0.93
@@ -173,7 +173,7 @@ Material:
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
-    - _BaseColor: {r: 0.71158, g: 0.24133416, b: 0.20003448, a: 1}
+    - _BaseColor: {r: 0.7, g: 0.3, b: 0.28, a: 1}
     - _Color: {r: 0.7, g: 0.29999998, b: 0.27999997, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GradBottom: {r: 0.78, g: 0.86, b: 1, a: 1}

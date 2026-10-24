@@ -12,7 +12,8 @@ public class DebugHUD : MonoBehaviour
     {
         if (GameManager.Instance == null) return;
         PlayerData data = GameManager.Instance.Data;
-        if (moneyText != null) moneyText.text = $"Para: ${data.money:0}";
-        if (jobsText != null) jobsText.text = $"Is: {data.completedJobs}";
+        // Para rozeti (PestHudGorunum) başlığı kendisi yazar; burada sadece değerler.
+        if (moneyText != null) moneyText.SetText("${0}", Mathf.Floor(data.money));
+        if (jobsText != null) jobsText.SetText("Tamamlanan iş: {0}", data.completedJobs);
     }
 }

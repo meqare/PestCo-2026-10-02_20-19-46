@@ -16,8 +16,8 @@ public class PlayerInteraction : MonoBehaviour
     [Header("Crosshair")]
     [SerializeField] private float dotSize = 4f;
     [SerializeField] private float dotSizeHighlighted = 10f;
-    [SerializeField] private Color dotColor = new Color(1f, 1f, 1f, 0.6f);
-    [SerializeField] private Color dotColorHighlighted = new Color(1f, 0.85f, 0.2f, 1f);
+    [SerializeField] private Color dotColor = new Color(0.98f, 0.94f, 0.84f, 1f);
+    [SerializeField] private Color dotColorHighlighted = new Color(0.93f, 0.68f, 0.22f, 1f);
 
     public IInteractable CurrentTarget { get; private set; }
     public string CurrentPrompt => CurrentTarget != null ? CurrentTarget.GetPrompt() : string.Empty;
@@ -30,6 +30,7 @@ public class PlayerInteraction : MonoBehaviour
     private RectTransform crosshair;
     private Image crosshairImage;
     private TMP_Text promptText;
+    private PestHudTema.Panel promptPlate;
     private bool shownHighlighted;
     private string shownPrompt;
 
@@ -98,24 +99,18 @@ public class PlayerInteraction : MonoBehaviour
         rootRect.anchorMin = rootRect.anchorMax = new Vector2(0.5f, 0.5f);
         rootRect.sizeDelta = Vector2.zero;
 
-        var dot = new GameObject("Crosshair", typeof(RectTransform), typeof(Image));
-        crosshair = (RectTransform)dot.transform;
-        crosshair.SetParent(rootRect, false);
-        crosshairImage = dot.GetComponent<Image>();
-        crosshairImage.raycastTarget = false;
+        // Nişan: mürekkep konturlu yuvarlak nokta (çizgi film stili).
+        var ink = PestHudTema.Resim("Crosshair", rootRect, PestHudTema.Daire, PestHudTema.Murekkep);
+        crosshair = ink.rectTransform;
+        crosshairImage = PestHudTema.Resim("Dot", crosshair, PestHudTema.Daire, dotColor);
+        PestHudTema.Doldur(crosshairImage.rectTransform, 2f);
 
-        var label = new GameObject("Prompt", typeof(RectTransform), typeof(TextMeshProUGUI));
-        var labelRect = (RectTransform)label.transform;
-        labelRect.SetParent(rootRect, false);
-        labelRect.pivot = new Vector2(0.5f, 1f);
-        labelRect.sizeDelta = new Vector2(400f, 30f);
-        labelRect.anchoredPosition = new Vector2(0f, -20f);
-        promptText = label.GetComponent<TextMeshProUGUI>();
-        promptText.fontSize = 18f;
-        promptText.alignment = TextAlignmentOptions.Top;
-        promptText.color = Color.white;
-        promptText.raycastTarget = false;
-        promptText.textWrappingMode = TextWrappingModes.NoWrap;
+        // Etkileşim yazısı: nişanın altında kağıt etiket, yazıya göre genişler.
+        promptPlate = PestHudTema.YeniPanel("Prompt", rootRect, PestHudTema.Kagit, 3f, 4f, 12);
+        PestHudTema.Yerlestir(promptPlate.kok, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 1f), new Vector2(0f, -28f), new Vector2(200f, 38f));
+        promptText = PestHudTema.Yazi("Text", promptPlate.Icerik, 20f, PestHudTema.Murekkep, TextAlignmentOptions.Center);
+        PestHudTema.Doldur(promptText.rectTransform);
+        promptPlate.kok.gameObject.SetActive(false);
     }
 
     // Nişan boyut/rengini ve yazıyı yalnızca değiştiklerinde yazar.
@@ -127,7 +122,7 @@ public class PlayerInteraction : MonoBehaviour
         if (force || highlighted != shownHighlighted)
         {
             shownHighlighted = highlighted;
-            float size = highlighted ? dotSizeHighlighted : dotSize;
+            float size = (highlighted ? dotSizeHighlighted : dotSize) + 4f;
             crosshair.sizeDelta = new Vector2(size, size);
             crosshairImage.color = highlighted ? dotColorHighlighted : dotColor;
         }
@@ -137,6 +132,9 @@ public class PlayerInteraction : MonoBehaviour
         {
             shownPrompt = prompt;
             promptText.text = prompt;
+            bool show = !string.IsNullOrEmpty(prompt);
+            promptPlate.kok.gameObject.SetActive(show);
+            if (show) promptPlate.kok.sizeDelta = new Vector2(promptText.GetPreferredValues(prompt).x + 32f, 38f);
         }
     }
 }

@@ -20,10 +20,11 @@ public class InventoryHotbar : MonoBehaviour
     [SerializeField] private float _bottomMargin = 12f;
 
     [Header("Renkler")]
-    [SerializeField] private Color _barColor = new Color(0.05f, 0.06f, 0.09f, 0.82f);
-    [SerializeField] private Color _slotBorderColor = new Color(0.07f, 0.05f, 0.06f, 1f);
-    [SerializeField] private Color _slotInnerColor = new Color(0.27f, 0.3f, 0.42f, 1f);
-    [SerializeField] private Color _selectColor = new Color(1f, 0.84f, 0.2f);
+    [Tooltip("Slotların altındaki koyu tepsi.")]
+    [SerializeField] private Color _tray = new Color(0.14f, 0.09f, 0.15f, 0.72f);
+    [SerializeField] private Color _slotEmptyColor = new Color(0.85f, 0.77f, 0.6f, 0.9f);
+    [SerializeField] private Color _selectFillColor = new Color(0.99f, 0.82f, 0.42f);
+    [SerializeField] private Color _selectRingColor = new Color(0.93f, 0.68f, 0.22f);
     [SerializeField] private Color _horrorTint = new Color(0.8f, 0.5f, 1f);
 
     [Header("İsim Yazısı")]
@@ -64,6 +65,7 @@ public class InventoryHotbar : MonoBehaviour
     private class Slot
     {
         public RectTransform root;
+        public Image fill;
         public Image icon;
         public TMP_Text count;
         public bool isTool;
@@ -75,6 +77,7 @@ public class InventoryHotbar : MonoBehaviour
     }
 
     private const float PopDuration = 0.25f;
+    private const float SelectedLift = 8f;
 
     private readonly List<Slot> _slots = new List<Slot>();
     private readonly List<ItemKey> _currentKeys = new List<ItemKey>();
@@ -82,6 +85,8 @@ public class InventoryHotbar : MonoBehaviour
 
     private RectTransform _selectFrame;
     private TMP_Text _nameText;
+    private PestHudTema.Panel _namePlate;
+    private CanvasGroup _nameGroup;
     private TMP_Text _overflowText;
     private float _nameTimer;
     private int _lastToolIndex = -1;
@@ -351,8 +356,7 @@ public class InventoryHotbar : MonoBehaviour
         if (slot.isTool)
         {
             if (_toolHolder != null) _toolHolder.RequestSwitch(SelectedIndex);
-            _nameText.text = slot.toolName;
-            _nameTimer = _nameShowTime;
+            SetName(slot.toolName);
         }
         else if (slot.hasItem) ShowName(slot.key, slot.amount);
         else _nameTimer = 0f;
@@ -366,19 +370,28 @@ public class InventoryHotbar : MonoBehaviour
 
     private void ShowName(ItemKey key, int amount)
     {
-        _nameText.text = GetDisplayName(key, amount);
+        SetName(GetDisplayName(key, amount));
+    }
+
+    /// <summary>Etiketi yazıya göre genişletip gösterir.</summary>
+    private void SetName(string text)
+    {
+        _nameText.text = text;
+        float width = _nameText.GetPreferredValues(text).x;
+        _namePlate.kok.sizeDelta = new Vector2(width + 36f, 40f);
         _nameTimer = _nameShowTime;
     }
 
-    /// <summary>Son yarım saniyede isim yazısını yavaşça söndürür.</summary>
+    /// <summary>Son yarım saniyede isim etiketini yavaşça söndürür.</summary>
     private void FadeName()
     {
         if (_nameTimer > 0f) _nameTimer -= Time.unscaledDeltaTime;
-        _nameText.alpha = Mathf.Clamp01(_nameTimer / 0.5f);
+        _nameGroup.alpha = Mathf.Clamp01(_nameTimer / 0.5f);
     }
 
     /// <summary>
-    /// Seçili slot hafifçe büyür (halka da onunla); yeni gelen eşyanın simgesi kısa bir an zıplar.
+    /// Seçili slot hafifçe büyüyüp yukarı kalkar ve hardala boyanır (halka da onunla);
+    /// yeni gelen eşyanın simgesi kısa bir an zıplar.
     /// </summary>
     private void AnimatePop()
     {
@@ -386,11 +399,22 @@ public class InventoryHotbar : MonoBehaviour
         for (int i = 0; i < _slots.Count; i++)
         {
             Slot slot = _slots[i];
+            bool selected = i == SelectedIndex;
 
-            float target = i == SelectedIndex ? 1.1f : 1f;
-            float s = Mathf.Lerp(slot.root.localScale.x, target, k);
+            float s = Mathf.Lerp(slot.root.localScale.x, selected ? 1.08f : 1f, k);
             slot.root.localScale = new Vector3(s, s, 1f);
-            if (i == SelectedIndex) _selectFrame.localScale = slot.root.localScale;
+
+            Vector2 pos = slot.root.anchoredPosition;
+            pos.y = Mathf.Lerp(pos.y, selected ? SelectedLift : 0f, k);
+            slot.root.anchoredPosition = pos;
+
+            slot.fill.color = Color.Lerp(slot.fill.color, SlotFill(i), k);
+
+            if (selected)
+            {
+                _selectFrame.localScale = slot.root.localScale;
+                _selectFrame.anchoredPosition = pos;
+            }
 
             if (slot.popTimer <= 0f) continue;
 
@@ -428,7 +452,10 @@ public class InventoryHotbar : MonoBehaviour
 
     #region Görsel Kurulum
 
-    /// <summary>Alt-ortada koyu çubuğu, slotları, seçim çerçevesini ve yazıları oluşturur.</summary>
+    /// <summary>
+    /// Alt-ortada çizgi film envanter çubuğu: koyu tepsi üstünde krem kağıt slotlar (mürekkep kontur + sert gölge),
+    /// köşede tuş numarası, seçili slotta hardal dolgu ve kalkma; üstte kağıt etiket halinde eşya adı.
+    /// </summary>
     private void BuildVisuals()
     {
         RectTransform rect = GetComponent<RectTransform>();
@@ -440,10 +467,10 @@ public class InventoryHotbar : MonoBehaviour
         rect.sizeDelta = new Vector2(width + 8f, _slotSize + 8f);
         rect.anchoredPosition = new Vector2(0f, _bottomMargin);
 
-        Image bar = CreateImage("Bar", rect, _barColor);
-        SetRounded(bar, CartoonIcons.RoundedPanel(16));
-        Stretch(bar.rectTransform, -6f);
-        bar.raycastTarget = false;
+        // Koyu tepsi: parlak sahnelerde de slotlar seçilsin.
+        PestHudTema.Panel tray = PestHudTema.YeniPanel("Bar", rect, _tray, 3f, PestHudTema.GolgeKayma, 18);
+        PestHudTema.Doldur(tray.kok, -8f);
+        tray.kok.offsetMax = new Vector2(8f, 4f);
 
         float startX = -width * 0.5f + _slotSize * 0.5f;
         for (int i = 0; i < _slotCount; i++)
@@ -452,61 +479,85 @@ public class InventoryHotbar : MonoBehaviour
             _slots.Add(CreateSlot(rect, i, position));
         }
 
-        // Seçim halkası slotlardan biraz büyük, yuvarlak ve içi boş.
-        Image frame = CreateImage("Selected", rect, _selectColor);
-        SetRounded(frame, CartoonIcons.RoundedFrame(16, 5f));
-        _selectFrame = frame.rectTransform;
+        // Seçim halkası: hardal çerçeve, dışında ince mürekkep.
+        Image ink = CreateImage("Selected", rect, PestHudTema.Murekkep);
+        SetRounded(ink, CartoonIcons.RoundedFrame(18, 8f));
+        _selectFrame = ink.rectTransform;
         _selectFrame.anchorMin = _selectFrame.anchorMax = new Vector2(0.5f, 0.5f);
-        _selectFrame.sizeDelta = new Vector2(_slotSize + 12f, _slotSize + 12f);
+        _selectFrame.sizeDelta = new Vector2(_slotSize + 14f, _slotSize + 14f);
+        Image ring = CreateImage("Ring", _selectFrame, _selectRingColor);
+        SetRounded(ring, CartoonIcons.RoundedFrame(16, 4.5f));
+        Stretch(ring.rectTransform, 2f);
         _selectFrame.anchoredPosition = _slots[0].root.anchoredPosition;
 
-        _nameText = CreateText("ItemName", rect, 24f, TextAlignmentOptions.Bottom);
-        _nameText.rectTransform.anchorMin = new Vector2(0f, 1f);
-        _nameText.rectTransform.anchorMax = new Vector2(1f, 1f);
-        _nameText.rectTransform.pivot = new Vector2(0.5f, 0f);
-        _nameText.rectTransform.sizeDelta = new Vector2(200f, 32f);
-        _nameText.rectTransform.anchoredPosition = new Vector2(0f, 6f);
-        _nameText.alpha = 0f;
+        // Eşya adı: çubuğun üstünde kağıt etiket (genişliği yazıya göre ayarlanır).
+        _namePlate = PestHudTema.YeniPanel("ItemName", rect, PestHudTema.Kagit, 3f, 4f, 12);
+        RectTransform plate = _namePlate.kok;
+        plate.anchorMin = plate.anchorMax = new Vector2(0.5f, 1f);
+        plate.pivot = new Vector2(0.5f, 0f);
+        plate.anchoredPosition = new Vector2(0f, 22f);
+        plate.sizeDelta = new Vector2(200f, 40f);
+        _nameGroup = plate.gameObject.AddComponent<CanvasGroup>();
+        _nameGroup.alpha = 0f;
+        _nameGroup.blocksRaycasts = false;
 
-        _overflowText = CreateText("Overflow", rect, 22f, TextAlignmentOptions.Left);
+        _nameText = PestHudTema.Yazi("Text", _namePlate.Icerik, 22f, PestHudTema.Murekkep, TextAlignmentOptions.Center);
+        Stretch(_nameText.rectTransform);
+
+        _overflowText = CreateText("Overflow", rect, 24f, TextAlignmentOptions.Left);
         _overflowText.rectTransform.anchorMin = _overflowText.rectTransform.anchorMax = new Vector2(1f, 0.5f);
         _overflowText.rectTransform.pivot = new Vector2(0f, 0.5f);
         _overflowText.rectTransform.sizeDelta = new Vector2(60f, 32f);
-        _overflowText.rectTransform.anchoredPosition = new Vector2(8f, 0f);
+        _overflowText.rectTransform.anchoredPosition = new Vector2(16f, 0f);
         _overflowText.text = string.Empty;
     }
 
     private Slot CreateSlot(RectTransform parent, int index, Vector2 position)
     {
-        // Dış katman mürekkep kenarı, iç katman slotun rengi (çizgi film paneli).
-        Image border = CreateImage("Slot" + (index + 1), parent, _slotBorderColor);
-        SetRounded(border, CartoonIcons.RoundedPanel(14));
-        RectTransform root = border.rectTransform;
+        RectTransform root = PestHudTema.Bos("Slot" + (index + 1), parent);
         root.anchorMin = root.anchorMax = new Vector2(0.5f, 0.5f);
         root.sizeDelta = new Vector2(_slotSize, _slotSize);
         root.anchoredPosition = position;
 
-        Image inner = CreateImage("Inner", root, _slotInnerColor);
-        SetRounded(inner, CartoonIcons.RoundedPanel(12));
-        Stretch(inner.rectTransform, 3f);
+        PestHudTema.Panel panel = PestHudTema.PanelKur(root, _slotEmptyColor, 3f, 4f, 14);
 
-        // Üst yarıda hafif parlama: panel şişkin dursun.
-        Image shine = CreateImage("Shine", inner.rectTransform, new Color(1f, 1f, 1f, 0.07f));
+        // Üst yarıda hafif parlama: kağıt şişkin dursun.
+        Image shine = CreateImage("Shine", panel.Icerik, new Color(1f, 1f, 1f, 0.22f));
         SetRounded(shine, CartoonIcons.RoundedPanel(10));
-        shine.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+        shine.rectTransform.anchorMin = new Vector2(0f, 0.55f);
         shine.rectTransform.anchorMax = Vector2.one;
-        shine.rectTransform.offsetMin = new Vector2(3f, 0f);
-        shine.rectTransform.offsetMax = new Vector2(-3f, -3f);
+        shine.rectTransform.offsetMin = new Vector2(4f, 0f);
+        shine.rectTransform.offsetMax = new Vector2(-4f, -4f);
 
         Image icon = CreateImage("Icon", root, Color.white);
-        Stretch(icon.rectTransform, 5f);
+        Stretch(icon.rectTransform, 9f);
+        icon.rectTransform.offsetMin = new Vector2(12f, 8f);
         icon.preserveAspect = true;
         icon.enabled = false;
 
-        TMP_Text count = CreateText("Count", root, 22f, TextAlignmentOptions.BottomRight);
-        Stretch(count.rectTransform, 3f);
+        // Tuş numarası sol üstte (1-9).
+        if (index < 9)
+        {
+            TextMeshProUGUI key = PestHudTema.Yazi("Key", root, 14f, PestHudTema.Soluk, TextAlignmentOptions.TopLeft);
+            key.fontStyle = FontStyles.Bold;
+            key.text = (index + 1).ToString();
+            Stretch(key.rectTransform);
+            key.rectTransform.offsetMin = new Vector2(8f, 0f);
+            key.rectTransform.offsetMax = new Vector2(0f, -5f);
+        }
 
-        return new Slot { root = root, icon = icon, count = count };
+        TMP_Text count = CreateText("Count", root, 22f, TextAlignmentOptions.BottomRight);
+        Stretch(count.rectTransform, 5f);
+
+        return new Slot { root = root, fill = panel.dolgu, icon = icon, count = count };
+    }
+
+    /// <summary>Slotun dolgu rengi: seçili hardal, dolu kağıt, boş soluk kart.</summary>
+    private Color SlotFill(int index)
+    {
+        if (index == SelectedIndex) return _selectFillColor;
+        Slot slot = _slots[index];
+        return slot.isTool || slot.hasItem ? PestHudTema.Kagit : _slotEmptyColor;
     }
 
     private static void SetRounded(Image image, Sprite sprite)
@@ -526,21 +577,11 @@ public class InventoryHotbar : MonoBehaviour
         return image;
     }
 
+    /// <summary>Slot üstündeki sayı yazısı: krem, kalın mürekkep konturlu (çizgi film rakamı).</summary>
     private static TMP_Text CreateText(string name, Transform parent, float fontSize, TextAlignmentOptions alignment)
     {
-        var go = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
-        go.transform.SetParent(parent, false);
-        var text = go.GetComponent<TextMeshProUGUI>();
-        text.fontSize = fontSize;
-        text.fontStyle = FontStyles.Bold;
-        text.alignment = alignment;
-        text.textWrappingMode = TextWrappingModes.NoWrap;
-        text.overflowMode = TextOverflowModes.Overflow;
-        text.raycastTarget = false;
-        text.color = Color.white;
-        // Çizgi film yazısı: kalın siyah kontur.
-        text.outlineWidth = 0.28f;
-        text.outlineColor = new Color32(18, 12, 14, 255);
+        var text = PestHudTema.Yazi(name, parent, fontSize, PestHudTema.Krem, alignment);
+        PestHudTema.KonturluYazi(text, fontSize, PestHudTema.Krem, 0.3f);
         return text;
     }
 
