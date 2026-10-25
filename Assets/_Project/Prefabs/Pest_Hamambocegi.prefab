@@ -165,6 +165,8 @@ MonoBehaviour:
   minFleeTimeBeforeHide: 3.5
   hideSafeDistance: 3.5
   bugData: {fileID: 11400000, guid: f7e1af605f401c440a829af743f7e947, type: 2}
+  stunnedBugPrefab: {fileID: 7610790672423085847, guid: e8abb23dd8d52b24cb2ea6cb1e4f94bf,
+    type: 3}
   vacuumDrainPerSecond: 16
   swallowHealthFraction: 0.3
   healthyPullMultiplier: 0.35

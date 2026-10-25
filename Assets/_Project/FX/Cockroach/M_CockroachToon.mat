@@ -52,7 +52,7 @@ Material:
     m_Floats:
     - _AmbientStrength: 0.5
     - _BrushScale: 14
-    - _BrushStrength: 0.015
+    - _BrushStrength: 0.06
     - _BumpScale: 1
     - _DetailAmt: 0
     - _DetailBumpScale: 1
@@ -60,7 +60,7 @@ Material:
     - _DetailScale: 1
     - _GradAmount: 0
     - _GradH: 2.6
-    - _GradStrength: 0.3
+    - _GradStrength: 0
     - _GradY0: 0
     - _HiStrength: 0.16
     - _LampBoost: 0.9
@@ -69,13 +69,13 @@ Material:
     - _OutlineFarEnd: 8
     - _OutlineFarMin: 0.15
     - _OutlineFarStart: 2.5
-    - _OutlinePixels: 1.75
+    - _OutlinePixels: 3.5
     - _Realism: 0.75
     - _RimStrength: 0.5
     - _Smoothness: 0.82
     - _Softness: 0.18
-    - _SpecSize: 0.93
-    - _SpecStrength: 0.6
+    - _SpecSize: 0.9
+    - _SpecStrength: 0.5
     - _StencilRef: 0
     - _Threshold: 0.5
     - _UseRoughUV: 0

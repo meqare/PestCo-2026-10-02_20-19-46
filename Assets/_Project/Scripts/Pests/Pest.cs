@@ -178,6 +178,9 @@ public class Pest : MonoBehaviour, IDamageable
     [Header("Yakalama / Vakum Direnci (kolay yakalanmasın)")]
     [Tooltip("Vakumla yakalanınca envantere eklenecek böcek verisi (tür adı, satış değeri).")]
     [SerializeField] private BugData bugData;
+    [Tooltip("Atanmışsa öldürücü sprey vuruşu böceği öldürmez: bu prefab'ın (CageableBug) baygın hali aynı yerde belirir, " +
+             "böcek havuza döner (öldürme sayılmaz). Vakumla kapsüle, oradan fanusa konabilir. Boşsa eski ölüm.")]
+    [SerializeField] private GameObject stunnedBugPrefab;
     [Tooltip("Vakum tutarken saniyede kaybettiği can (öldürmez, zayıflatır).")]
     [SerializeField, Min(0f)] private float vacuumDrainPerSecond = 16f;
     [Tooltip("Can bu orana inince yutulabilir (0.3 = %30). Daha sağlamsa vakum yutamaz.")]
@@ -1514,6 +1517,7 @@ public class Pest : MonoBehaviour, IDamageable
         // Ölümcül vuruşta itme yok: böcek vurulduğu yerde kasılır.
         if (currentHealth <= 0f)
         {
+            if (stunnedBugPrefab != null && CaptureAsStunned()) return;
             Die(hitDirection);
             return;
         }
@@ -1535,6 +1539,28 @@ public class Pest : MonoBehaviour, IDamageable
             isCornerWaiting = false;
             PickCornerTarget();
         }
+    }
+
+    // Öldürmek yerine yakalanabilir hale getirir: aynı yerde CageableBug (baygın) belirir, bu böcek havuza döner.
+    // TotalKills artmaz (görev öldürme sayımı); yuva için onDeath yine tetiklenir. Prefab geçersizse false döner.
+    private bool CaptureAsStunned()
+    {
+        GameObject stunned = Instantiate(stunnedBugPrefab, transform.position + Vector3.up * 0.05f,
+                                         Quaternion.Euler(0f, transform.eulerAngles.y, 0f));
+        CageableBug bug = stunned.GetComponent<CageableBug>();
+        if (bug == null)
+        {
+            Destroy(stunned);
+            return false;
+        }
+        bug.BecomeStunned();
+
+        state = PestState.Dead;
+        currentHealth = 0f;
+        ReleaseHideSpot();
+        onDeath?.Invoke();
+        ReturnToPool();
+        return true;
     }
 
     // Ölüm: his efekti, agent/collider/gölge kapanır, olay tetiklenir, ölüm animasyonu başlar.

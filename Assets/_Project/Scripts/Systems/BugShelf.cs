@@ -49,25 +49,23 @@ public class BugShelf : MonoBehaviour
             SellAll();
     }
 
+    // Satılabilir toplam: kırılma beklenen (BreachPending) bölmeler dahil değildir.
     private float TotalValue()
     {
         float total = 0f;
         if (cages == null) return total;
         foreach (BugCage cage in cages)
-            if (cage != null) total += cage.TotalValue();
+            if (cage != null) total += CageSaleService.PreviewValue(cage);
         return total;
     }
 
+    // Tüm bölmeleri ortak satış işlemiyle (CageSaleService) satar; panelin SAT butonuyla aynı güvenli yol.
     public void SellAll()
     {
-        int payout = Mathf.RoundToInt(TotalValue());
-        int count = 0;
-        foreach (BugCage cage in cages)
-            if (cage != null) count += cage.SellContents();
+        if (cages == null) return;
 
-        if (GameManager.Instance != null) GameManager.Instance.AddMoney(payout);
-        else Debug.LogWarning("BugShelf: GameManager sahnede yok, para sadece loglandı.", this);
-
-        Debug.Log($"[Fanus] {count} böcek satıldı, kazanç: ${payout}");
+        CageSaleResult result = CageSaleService.SellCages(cages);
+        if (result.status == CageSaleStatus.Failed)
+            Debug.LogWarning("BugShelf: Satış yapılamadı (GameManager yok); yaratıklar satılmadı.", this);
     }
 }

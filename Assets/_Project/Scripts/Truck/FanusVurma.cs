@@ -21,12 +21,19 @@ namespace PestCo.Truck
         [SerializeField] private Vector2 yakinAralik = new Vector2(1.2f, 3.5f);
         [SerializeField] private float yakinMesafe = 2.2f;
 
+        [Header("Baskı (aynı nesnedeki CagePressureController, yoksa etkisiz)")]
+        [Tooltip("Vuruşlar arası bekleme bu çarpanla kısalır (0.7 = %30 daha sık). Yalnızca zamanlamayı etkiler; atılma hızı/fizik aynı.")]
+        [Range(0.1f, 1f)] [SerializeField] private float uyariAralikCarpani = 0.7f;
+        [Range(0.1f, 1f)] [SerializeField] private float tehlikeAralikCarpani = 0.5f;
+        [Range(0.1f, 1f)] [SerializeField] private float kritikAralikCarpani = 0.35f;
+
         [Header("Atılma")]
         [SerializeField] private float atilmaHizi = 1.7f;
         [Range(0f, 1f)] [SerializeField] private float seriOlasiligi = 0.35f;
 
         private static AudioClip vurmaSesi;
         private BugCage kafes;
+        private CagePressureController baski;
         private Transform oyuncu;
         private Vector3 camTemelPoz;
         private float sonraki;
@@ -35,6 +42,7 @@ namespace PestCo.Truck
         private void Awake()
         {
             kafes = GetComponent<BugCage>();
+            baski = GetComponent<CagePressureController>();
             if (cam != null) camTemelPoz = cam.localPosition;
             Planla(false);
         }
@@ -67,7 +75,20 @@ namespace PestCo.Truck
         private void Planla(bool yakin)
         {
             var a = yakin ? yakinAralik : uzakAralik;
-            sonraki = Time.time + Random.Range(a.x, a.y);
+            sonraki = Time.time + Random.Range(a.x, a.y) * AralikCarpani();
+        }
+
+        // Fanus baskısı arttıkça yaratıklar cama daha sık vurur (yalnızca bekleme süresi kısalır).
+        private float AralikCarpani()
+        {
+            if (baski == null) return 1f;
+            switch (baski.State)
+            {
+                case CagePressureState.Warning: return uyariAralikCarpani;
+                case CagePressureState.Danger: return tehlikeAralikCarpani;
+                case CagePressureState.Critical: return kritikAralikCarpani;
+                default: return 1f;
+            }
         }
 
         private IEnumerator Vur(CageableBug bocek, bool yakin)

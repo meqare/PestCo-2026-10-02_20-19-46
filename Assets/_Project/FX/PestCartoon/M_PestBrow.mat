@@ -60,7 +60,7 @@ Material:
     - _DetailScale: 1
     - _GradAmount: 0
     - _GradH: 2.6
-    - _GradStrength: 0.3
+    - _GradStrength: 0
     - _GradY0: 0
     - _HiStrength: 0.16
     - _LampBoost: 0.9
@@ -69,7 +69,7 @@ Material:
     - _OutlineFarEnd: 10
     - _OutlineFarMin: 1
     - _OutlineFarStart: 3
-    - _OutlinePixels: 0.625
+    - _OutlinePixels: 2.5
     - _Realism: 0.6
     - _RimStrength: 0.2
     - _Smoothness: 0.5
@@ -82,7 +82,7 @@ Material:
     - _UseVertexColor: 0
     - _WonkyOn: 1
     m_Colors:
-    - _BaseColor: {r: 0, g: 0.21999964, b: 0.0388234, a: 1}
+    - _BaseColor: {r: 0.05, g: 0.22, b: 0.08, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GradBottom: {r: 0.78, g: 0.86, b: 1, a: 1}
     - _GradTop: {r: 1.08, g: 1.05, b: 0.95, a: 1}

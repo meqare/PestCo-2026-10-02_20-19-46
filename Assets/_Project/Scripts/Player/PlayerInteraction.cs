@@ -27,6 +27,7 @@ public class PlayerInteraction : MonoBehaviour
 
     // Nişan noktası ve etkileşim yazısı Canvas üzerinde bir kez kurulur (FPS: eski OnGUI her karede
     // metni yeniden ölçüp editörde ~10 ms takılma yapıyordu). Sadece hedef/metin değişince güncellenir.
+    private GameObject hudRoot;
     private RectTransform crosshair;
     private Image crosshairImage;
     private TMP_Text promptText;
@@ -56,6 +57,19 @@ public class PlayerInteraction : MonoBehaviour
 
     private void Update()
     {
+        // Fanus inceleme paneli açıkken hiçbir etkileşim olmaz; nişan ve yazı gizlenir.
+        if (CageInspectPanel.IsOpen)
+        {
+            if (CurrentTarget != null)
+            {
+                CurrentTarget = null;
+                RefreshHud(false);
+            }
+            if (hudRoot != null && hudRoot.activeSelf) hudRoot.SetActive(false);
+            return;
+        }
+        if (hudRoot != null && !hudRoot.activeSelf) hudRoot.SetActive(true);
+
         bool changed = false;
         if (Time.time >= nextCheckTime)
         {
@@ -94,6 +108,7 @@ public class PlayerInteraction : MonoBehaviour
         if (canvas == null) return;
 
         var root = new GameObject("InteractionHud", typeof(RectTransform));
+        hudRoot = root;
         var rootRect = (RectTransform)root.transform;
         rootRect.SetParent(canvas.transform, false);
         rootRect.anchorMin = rootRect.anchorMax = new Vector2(0.5f, 0.5f);

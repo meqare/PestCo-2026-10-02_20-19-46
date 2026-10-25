@@ -42,7 +42,11 @@ public class PestWaddle : MonoBehaviour
     /// <summary>Yürüyüşün üstüne çarpılan ölçek (örn. şaşkınlıkla uzama).</summary>
     public Vector3 ExtraScale { get; set; } = Vector3.one;
 
+    /// <summary>true iken efekt durur ve görsele dokunulmaz (örn. fanus böceği baygın yatarken kendi duruşunu yönetir).</summary>
+    public bool Suppressed { get; set; }
+
     private NavMeshAgent _agent;
+    private Rigidbody _body; // ajan yoksa hız fizik gövdesinden okunur (fanus böceği)
     private Vector3 _baseLocalPosition;
     private Quaternion _baseLocalRotation;
     private Vector3 _baseLocalScale;
@@ -54,7 +58,13 @@ public class PestWaddle : MonoBehaviour
     private void Awake()
     {
         _agent = GetComponent<NavMeshAgent>();
+        if (_agent == null) _body = GetComponent<Rigidbody>();
         if (_visual == null) _visual = transform.Find("RoachModel");
+        if (_visual == null)
+        {
+            CageableBug cageable = GetComponent<CageableBug>();
+            if (cageable != null) _visual = cageable.Visual;
+        }
         if (_visual == null) return;
 
         _baseLocalPosition = _visual.localPosition;
@@ -71,15 +81,22 @@ public class PestWaddle : MonoBehaviour
         ExtraOffset = Vector3.zero;
         ExtraRotation = Quaternion.identity;
         ExtraScale = Vector3.one;
-        ApplyRest();
+        if (_agent != null) ApplyRest(); // fizik gövdeli böcek kendi duruşunu (baygın yatış) korur
     }
 
     /// <summary>Ajanın hızına göre sekme, salınım ve ezilmeyi uygular (animasyon sonrası, LateUpdate).</summary>
     private void LateUpdate()
     {
-        if (_visual == null || _agent == null) return;
+        if (_visual == null || (_agent == null && _body == null) || Suppressed) return;
 
-        float speed = _agent.enabled && _agent.isOnNavMesh ? _agent.velocity.magnitude : 0f;
+        float speed;
+        if (_agent != null) speed = _agent.enabled && _agent.isOnNavMesh ? _agent.velocity.magnitude : 0f;
+        else
+        {
+            Vector3 v = _body.linearVelocity;
+            v.y = 0f;
+            speed = _body.isKinematic ? 0f : v.magnitude;
+        }
         float target = Mathf.Clamp01(speed / _fullEffectSpeed);
         _intensity = Mathf.SmoothDamp(_intensity, target, ref _intensityVelocity, _smoothTime);
 
